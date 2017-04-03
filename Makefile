@@ -1,6 +1,7 @@
 
 CHAPTERS := 000_header.md \
 			01_Introduction.md \
+			02_ADT_and_complexity.md \
 			xx_conclusions.md
 
 

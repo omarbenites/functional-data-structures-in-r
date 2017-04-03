@@ -1,7 +1,7 @@
 
 # Introduction
 
-Welcome to the *Advanced Statistical Programming in R* series and this book, *Meta-programming in R*. I am writing this series, and this book, to have teaching material beyond the typical introductory level most textbooks on R have. It covers some of the more advanced techniques used in R programming such as fully exploiting functional programming, writing meta-programs (code for actually manipulating the language structures), and writing domain specific languages to embed in R.
+Welcome to the *Advanced Statistical Programming in R* series and this book, *Functional Data Structures in R*. I am writing this series, and this book, to have teaching material beyond the typical introductory level most textbooks on R have. It covers some of the more advanced techniques used in R programming such as fully exploiting functional programming, writing meta-programs (code for actually manipulating the language structures), and writing domain specific languages to embed in R.
 
 ## About the series
 
@@ -11,14 +11,22 @@ For each book, I will make clear what I think the prerequisites for reading the 
 
 If you have used R before for data analysis and are familiar with writing expressions and functions, and want to take it further and write more advanced R code, then the series is for you.
 
+All that being said, the "series" exists mostly in my head right now, even when considering the books I have already published. I'm trying to sell the books to get proper printed editions, and I can't convince publishers to buy a whole series. So I write the books as a series, publish them as soon as I am done with them, but sell them individually when I get an offer. This doesn't necessarily happen in the order in which I wrote them. Below is the status of the books in series at the time I am writing this, with original titles and new titles for the books I have sold.
+
+1. *Functional Programming in R*, now *Functional Programming in R: Advanced Statistical Programming for Data Science, Analysis and Finance* published by Apress.
+2. *Object-oriented Programming in R*
+3. *Meta-programming in R*
+4. *Functional Data Structures in R*
+
 
 ## About this book
 
-This book gives an introduction to meta-programming. Meta-programming is when you write programs manipulating other programs: you treat code as data that you can generate, analyse, or modify. R is a very high-level language where all operations are functions, and all functions are data that we can manipulate. Functions are objects, and you can, within the language, extract their components, modify them, or create new functions from their constituent components.
+This book gives an introduction to functional data structures. Many traditional data structures rely on the structures being mutable. We can modify search trees, change links in linked lists, rearrange values in a vector. In functional languages, and to a large degree in the R programming language, data is *not* mutable. You cannot modify existing data. The techniques that rely on modifying data structures to give us efficient building blocks for algorithmic programming cannot be used.
 
-There is great flexibility in how function calls and expressions are evaluated. The lazy evaluation semantics of R means that arguments to functions are passed as unevaluated expressions, and these expressions can be modified before they are evaluated, or they can be evaluated in other environments than the context where a function is defined. This can be exploited to create small domain-specific languages and is a fundamental component in the "tidy verse" in packages such as `dplyr` or `ggplot2` where expressions are evaluated in contexts defined by data frames.
+There are workarounds for this. R is not a *pure* functional language, and we can change variable-value bindings by modifying environment. We can exploit this to emulate pointers and implement traditional data structures this way. Or we can abandon pure R programming and implement data structures in C/C++ with some wrapper code so we can use them in our R programs. Both solutions let us use traditional data structures, but the former gives us very un-traditional R code and the latter is no use for those not familiar with other languages than R.
 
-There is some danger in modifying how the language evaluates function calls and expressions, of course. It makes it harder to reason about code. On the other hand, adding small embedded languages for dealing with everyday programming tasks adds expressiveness to the language that far outweighs the risks of programming confusion, as long as such meta-programming is used sparingly and in well-understood (and well documented) frameworks.
+The good news is, however, that we don't have to abandon R when implementing data structures, if we are willing to abandon the traditional data structures instead. There are data structures we can manipulate by building new versions we can return from a function in cases where we would traditionally just modify an existing one. These data structures, so-called *functional data structures*, are different from the traditional data structures you might know, but they are worth knowing about if you plan to do serious algorithmic programming in a functional language like R.
 
-In this book, you will learn how to manipulate functions and expressions, and how to evaluate expressions in non-standard ways. Prerequisites for reading this book are familiarity with functional programming, at least familiarity with higher-order functions, that is, functions that take other functions as an input or that return functions.
+There are not necessarily drop-in replacements for all the data structures you are used to, at least not with the same runtime performance for their operations---but there are likely to be implementations for most abstract data structures you regularly use. In cases where you might have to loose a bit of efficiency by using a functional data structures instead of a traditional one, however, you have to consider if the extra speed is worth the extra time you have to spend implementing a data structure in exotic R or a completely different language? There is always a tradeoff when it comes to speed. How much programming time is a speedup worth? If you are programming in R, chances are that you value programmer-time over computer-time. R is a high-level language and relatively slow compared to most other languages. It pays a high price in running time to provide higher levels of expressiveness. You accept this when you choose to work with R. You might have to make the same choice when it comes to choosing a functional data structure over a traditional one. Or you might conclude that you really *do* need the extra speed and chose to spend more time programming to save time when doing analysis. Only you can decide what the right choice is, based on your situation. You need to know what the choices are, though, so you need to know how you can work with data structures when you cannot modify data.
+
 
