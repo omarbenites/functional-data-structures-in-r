@@ -65,10 +65,89 @@ More important is this rule: keep modifying and querying a data structure as sep
 
 The reason for this is simple: our functions can't have side effects. If a "pop" function takes a stack as argument, it cannot modify this stack. It can give you the top element of the stack, and it can give you a new stack where the top element is removed, but it cannot give you the top element and then modify the stack as a side effect. Whenever we want to modify a data structure, what we have to do in a functional language, is to create a new structure instead. And we need to return this new structure to the caller. Instead of wrapping query answers *and* new (or "modified") data structures in lists so we can return multiple values, it is much easier to keep the two operations separate.
 
-Another rule of thumb for interfaces that I will stick to in this book is that I will always have my functions take the data structure as the first argument. This isn't something absolutely necessary, but it fits the convention for generic functions, so it makes it easier to work with abstract interfaces, and even when a function is not abstract---when I need some helper functions---remembering that the first argument is always the data structure just makes it easier to write my code.
+Another rule of thumb for interfaces that I will stick to in this book, with one exception, is that I will always have my functions take the data structure as the first argument. This isn't something absolutely necessary, but it fits the convention for generic functions, so it makes it easier to work with abstract interfaces, and even when a function is not abstract---when I need some helper functions---remembering that the first argument is always the data structure just makes it easier to write my code. The one exception to this rule is the construction of linked lists, where tradition is to have a construction function, `cons`, that takes an element as its first argument and a list as its second argument and construct a new list where the element is put at the head of the list. This construction is too much of a tradition for me to mess with, and I won't write a generic function of it, so it doesn't come into conflict with how we handle polymorphism.
 
 Other than that, there isn't much more language mechanics to creating abstract data structures. All operations we define for an abstract data structure have some intended semantics to them, but we cannot enforce this through the language; we just have to make sure that the operations we implement actually do what they are supposed to do.
 
+## Implementing concrete data structures in R
+
+**FIXME**
 
 ## Asymptotic running time
 
+While the operations we define in the interface of an abstract data type determines how we can use these in our programs, the *efficiency* of our programs depends on how efficiency the data structure operations are. Because of this, we often consider the time efficiency part of the interface of a data structure---if not part of the *abstract* data structure, we very much care about it when we have to pick concrete implementations of data structures for our algorithms.
+
+When it comes to algorithmic performance, the end goal is always to reduce wall time---the actual time we have to wait for a program to finish. This, however, depends on many factors that cannot necessarily know about when we design our algorithms. The computer the code will run on might not be available to us when we develop our software, and both its memory and CPU capabilities are likely to greatly affect the running time. The running time is also likely to depend intimately on the actual data we will apply the algorithm to. If we want to know exactly how long it will take to analyse a certain set of data, we have to run the algorithm on this data. Once we have done this, we know exactly how long it took to analyse the data, but by then it is too late to explore different solutions to maybe do the analysis faster.
+
+Because we cannot practically evaluate the efficiency of our algorithms and data structures by measuring the running time on the actual data we want to analyse, we use different techniques to evaluate the quality of different possible solutions to our problems.
+
+Once such technique is the use of *asymptotic complexity*, also know as "big-O" notation. Simply put, we abstract away some details of the actual running time of different algorithms or data structure operations and classify their runtime complexity according to upper bounds known up to a constant.
+
+First, we reduce our data to its size. We might have a set with $n$ elements, or a string of length $n$. While our data structures and algorithms might use very different actual wall time to work on different data of the same size, we care only about the number $n$ and not the details of the data. Of course, data of the same size is not all equal, so when we reduce all our information about it to a single size, we have to be a little careful about what we mean when we talk about algorithmic complexity of a problem. Here, we usually use one of two approaches: we talk about the *worst-case* or the *average/expected* complexity. The worst-case runtime complexity of an algorithm is the longest running time we can expect from it on any data of size $n$. The expected runtime complexity of an algorithm is the mean running time for data of size $n$ assuming some distribution over data.
+
+Second, we do not consider the *actual* running time for data of size $n$---where we would need to know exactly how many operations of different kinds would be executed by an algorithm, and how long each kind of operation takes to execute---we just count the number of operations and consider them equal. This gives us some function of $n$ that tells us how many operations an algorithm or operation will execute, but not how long each operation takes. We don't care about the details when comparing most algorithms because we only care about asymptotic behaviour when doing most of our algorithmic analysis.
+
+By asymptotic behaviour, we mean the behaviour of functions when the input numbers grow large. A function $f(n)$ is an asymptotic  upper bound for another function $g(n)$ if there exists some number $N$ such that $g(n) \\leq f(n)$ whenever $n>N$. We write this in the so-called "big-O" notation as $g(n) \in O(f(n))$ or $g(n) = O(f(n))$ (the choice of notation is a little arbitrary and depends on which textbook or reference you use).
+
+The rational behind using asymptotic complexity is that we can use it to reason about how algorithms will perform when we give them larger data sets. If we need to process data with millions of data points, we might be about to get a feeling for their running time through experiments with tens or hundreds of data points, and we might conclude that one algorithm outperforms another in this range. That, however, does not necessarily reflect how the two algorithms will compare for much larger data. If one algorithm is asymptotically faster than another it *will* eventually outperform the other, we just have to get to the point where $n$ gets large enough.
+
+A third abstraction we often use is to not be too careful with getting the exact number of operations as a function of $n$ right. We just want an upper bound. The big-O notation allows us to say that an algorithm runs in any big-O complexity that is an upper bound for the actual runtime complexity. We want, of course, to get this upper bound as exact as we can, in order to properly evaluate different choices of algorithms, but if we have upper and lower bounds for different algorithms we can still compare them. Even if the bounds are not tight, if we can see that the upper bound of one algorithm is better than the lower bound of another, then we can reason about the asymptotic running time of solutions based on the two.
+
+To see the asymptotic reasoning in action, consider the set implementation we wrote earlier:
+
+```{r}
+empty_list_set <- function() {
+  structure(c(), class = "list_set")
+}
+
+insert.list_set <- function(set, elem) {
+  structure(c(elem, set), class = "list_set")
+}
+
+member.list_set <- function(set, elem) {
+  elem %in% set
+}
+```
+
+It represent the set as a vector, and when we add elements to the set we simply concatenate the new element to the front of the existing set. Vectors, in R, are represented as contiguous memory, so when we construct new vectors this way, we need to allocate a block of memory to contain the new vector, copy the first element into the first position, and then copy the entire old vector into the remaining positions of the new vector. So inserting an element into a set of size $n$, with this implementation, will take time $O(n)$---we need to insert $n+1$ set elements into newly allocated blocks of memory. Growing a set from size 0 to size $n$ by repeatedly inserting elements will take time $O(n^2)$.
+
+The membership test, `elem %in% set`, runs through the vector until it either sees the value `elem` or until it reach the end of the vector. The best case would be to see `elem` at the beginning of the vector, but if we consider worst-case complexity, this is another $O(n)$ runtime operation.
+
+As an alternative implementation, consider linked lists. If you are not familiar with linked lists, you can return to this section after reading the next chapter, where we will consider these in some detail, but in short, linked lists consist of a "head"---an element we store in the list---and a "tail"---another, one element shorter, list. We can construct lists using a concatenation of a head and a tail, an operation often called "cons":
+
+
+```{r}
+linked_list_cons <- function(head, tail) {
+  structure(list(head = head, tail = tail), 
+            class = "linked_list_set")
+}
+```
+
+To make a set implementation using linked lists we need code for creating empty lists---we use the trick of defining a special sentinel object for this:
+
+```{r}
+linked_list_nil <- linked_list_cons(NA, NULL)
+empty_linked_list_set <- function() linked_list_nil
+is_empty.linked_list_set <- function(x) 
+  identical(x, linked_list_nil)
+```
+
+We insert elements in the list using the "cons" operation and we check membership by comparing `elem` with the head of the list. If the two are equal, the set contains the element. If not, we check if the `elem` is found in the rest of the list. In a pure functional language we would use recursion for this search, but here I have just implemented it using a `while` look:
+
+```{r}
+insert.linked_list_set <- function(set, elem) {
+  linked_list_cons(elem, set)
+}
+
+member.linked_list_set <- function(set, elem) {
+  while (!is_empty(set)) {
+    if (set$head == elem) return(TRUE)
+    set <- set$tail
+  }
+  return(FALSE)
+}
+```
+
+The `insert` operation in this implementation takes constant time. We create a new list node, set the head and tail in it, but unlike the vector implementation we do not copy anything. So for the liked list, inserting elements is an $O(1)$ operation. The membership check, however, still runs in $O(n)$ since we still do a linear search.
+
+## Experimental evaluation of algorithms 
