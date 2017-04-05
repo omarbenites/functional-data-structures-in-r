@@ -3,7 +3,8 @@ PANDOC := pandoc
 
 PANDOC_OPTS_ALL :=  -S --toc \
 					--top-level-division=chapter \
-					--filter pandoc-fignos
+					--filter pandoc-crossref \
+					--filter pandoc-citeproc
 PANDOC_PDF_OPTS := $(PANDOC_OPTS_ALL) \
 					--default-image-extension=pdf \
 					--variable links-as-notes \

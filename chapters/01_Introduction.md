@@ -13,7 +13,7 @@ If you have used R before for data analysis and are familiar with writing expres
 
 All that being said, the "series" exists mostly in my head right now, even when considering the books I have already published. I'm trying to sell the books to get proper printed editions, and I can't convince publishers to buy a whole series. So I write the books as a series, publish them as soon as I am done with them, but sell them individually when I get an offer. This doesn't necessarily happen in the order in which I wrote them. Below is the status of the books in series at the time I am writing this, with original titles and new titles for the books I have sold.
 
-1. *Functional Programming in R*, now *Functional Programming in R: Advanced Statistical Programming for Data Science, Analysis and Finance* published by Apress.
+1. *Functional Programming in R*, now *Functional Programming in R: Advanced Statistical Programming for Data Science, Analysis and Finance* [-@mailund2017functional].
 2. *Object-oriented Programming in R*
 3. *Meta-programming in R*
 4. *Functional Data Structures in R*

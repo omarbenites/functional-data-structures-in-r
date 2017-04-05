@@ -25,7 +25,49 @@ Because it is the operations we can do on data, and now how we represent the dat
 
 ## Abstract data structures in R
 
-If we define abstract data structures by the operations they provide, it is natural to represent them in R by a set of generic functions. 
+If we define abstract data structures by the operations they provide, it is natural to represent them in R by a set of generic functions. In this book, I will use the S3 object system for this.^[If you are unfamiliar with generic functions and the S3 system, I explain all this in my *Object-oriented Programming in R* book [@mailund2017oop].]
+
+Let's say we want a data structure that represents sets and we need two operations on it: we want to be able to insert elements into the set, and we want to be able to check if an element is found in the set. The generic interface for such a data structure could look like this:
+
+```{r}
+insert <- function(set, elem) UseMethod("insert")
+member <- function(set, elem) UseMethod("member")
+```
+
+Using generic functions, we can replace one implementation with another with little hassle. We just need one place to specify which concrete implementation we will use for an object we will otherwise only access through the abstract interface. Each implementation we write will have one function for constructing an empty data structure. This empty structure sets the class for the concrete implementation, and from here on we can access the data structure through generic functions. We can write a simple list-based implementation of the set data structure like this:
+
+```{r}
+empty_list_set <- function() {
+  structure(c(), class = "list_set")
+}
+
+insert.list_set <- function(set, elem) {
+  structure(c(elem, set), class = "list_set")
+}
+
+member.list_set <- function(set, elem) {
+  elem %in% set
+}
+```
+
+The `empty_list_set` function is how we create our first set of the concrete type. When we insert elements into a set, we also get the right type back, but we shouldn't call `insert.list_set` direction. We should just use `insert` and let the generic function mechanism pick the right implementation. If we make sure to make the only point where we refer to the concrete implementation be the creation of the empty set, then we make it easier to replace one implementation with another.
+
+```{r}
+s <- empty_list_set()
+member(s, 1)
+s <- insert(s, 1)
+member(s, 1)
+```
+
+When we implement data structures in R, there are a few rules of thumbs we should follow---some more important than others. Using a single "empty data structure" constructor and otherwise generic interfaces is one such rule. It isn't essential, but it does make it easier to work with abstract interfaces.
+
+More important is this rule: keep modifying and querying a data structure as separate functions. Take an operation such as posing the top element of a stack. You might think of this as a function that removes the first element of a stack and then return the element to you. There is nothing wrong with accessing a stack this way in most languages, but in functional languages it is much better to split this into two different operations: one for getting the top element and another for removing it from the stack.
+
+The reason for this is simple: our functions can't have side effects. If a "pop" function takes a stack as argument, it cannot modify this stack. It can give you the top element of the stack, and it can give you a new stack where the top element is removed, but it cannot give you the top element and then modify the stack as a side effect. Whenever we want to modify a data structure, what we have to do in a functional language, is to create a new structure instead. And we need to return this new structure to the caller. Instead of wrapping query answers *and* new (or "modified") data structures in lists so we can return multiple values, it is much easier to keep the two operations separate.
+
+Another rule of thumb for interfaces that I will stick to in this book is that I will always have my functions take the data structure as the first argument. This isn't something absolutely necessary, but it fits the convention for generic functions, so it makes it easier to work with abstract interfaces, and even when a function is not abstract---when I need some helper functions---remembering that the first argument is always the data structure just makes it easier to write my code.
+
+Other than that, there isn't much more language mechanics to creating abstract data structures. All operations we define for an abstract data structure have some intended semantics to them, but we cannot enforce this through the language; we just have to make sure that the operations we implement actually do what they are supposed to do.
 
 
 ## Asymptotic running time
