@@ -121,7 +121,43 @@ First, we reduce our data to its size. We might have a set with $n$ elements, or
 
 Second, we do not consider the *actual* running time for data of size $n$---where we would need to know exactly how many operations of different kinds would be executed by an algorithm, and how long each kind of operation takes to execute---we just count the number of operations and consider them equal. This gives us some function of $n$ that tells us how many operations an algorithm or operation will execute, but not how long each operation takes. We don't care about the details when comparing most algorithms because we only care about asymptotic behaviour when doing most of our algorithmic analysis.
 
-By asymptotic behaviour, we mean the behaviour of functions when the input numbers grow large. A function $f(n)$ is an asymptotic  upper bound for another function $g(n)$ if there exists some number $N$ such that $g(n) \\leq f(n)$ whenever $n>N$. We write this in the so-called "big-O" notation as $g(n) \\in O(f(n))$ or $g(n) = O(f(n))$ (the choice of notation is a little arbitrary and depends on which textbook or reference you use).
+By asymptotic behaviour, we mean the behaviour of functions when the input numbers grow large. A function 
+#ifdef EPUB
+f(n)
+#else
+$f(n)$
+#endif
+is an asymptotic  upper bound for another function
+#ifdef EPUB
+g(n)
+#else
+$g(n)$
+#endif
+if there exists some number 
+#ifdef EPUB
+N
+#else
+$N$
+#endif
+such that
+#ifdef EPUB
+g(n) <= f(n)
+#else
+$g(n) \\leq f(n)$
+#endif
+whenever
+#ifdef EPUB
+n > N.
+#else
+$n>N$.
+#endif
+We write this in the so-called "big-O" notation as
+#ifdef EPUB
+g(n) in O(f(n)) or g(n) = O(f(n))
+#else
+$g(n) \\in O(f(n))$ or $g(n) = O(f(n))$
+#endif
+(the choice of notation is a little arbitrary and depends on which textbook or reference you use).
 
 The rational behind using asymptotic complexity is that we can use it to reason about how algorithms will perform when we give them larger data sets. If we need to process data with millions of data points, we might be about to get a feeling for their running time through experiments with tens or hundreds of data points, and we might conclude that one algorithm outperforms another in this range. That, however, does not necessarily reflect how the two algorithms will compare for much larger data. If one algorithm is asymptotically faster than another it *will* eventually outperform the other, we just have to get to the point where $n$ gets large enough.
 
@@ -143,9 +179,32 @@ member.list_set <- function(set, elem) {
 }
 ```
 
-It represent the set as a vector, and when we add elements to the set we simply concatenate the new element to the front of the existing set. Vectors, in R, are represented as contiguous memory, so when we construct new vectors this way, we need to allocate a block of memory to contain the new vector, copy the first element into the first position, and then copy the entire old vector into the remaining positions of the new vector. So inserting an element into a set of size $n$, with this implementation, will take time $O(n)$---we need to insert $n+1$ set elements into newly allocated blocks of memory. Growing a set from size 0 to size $n$ by repeatedly inserting elements will take time $O(n^2)$.
+It represent the set as a vector, and when we add elements to the set we simply concatenate the new element to the front of the existing set. Vectors, in R, are represented as contiguous memory, so when we construct new vectors this way, we need to allocate a block of memory to contain the new vector, copy the first element into the first position, and then copy the entire old vector into the remaining positions of the new vector. So inserting an element into a set of size $n$, with this implementation, will take time 
+#ifdef EPUB
+O(n)
+#else
+$O(n)$
+#endif
+---we need to insert 
+#ifdef EPUB
+n+1
+#else
+$n+1$
+#endif
+set elements into newly allocated blocks of memory. Growing a set from size 0 to size $n$ by repeatedly inserting elements will take time 
+#ifdef EPUB
+O(n^2^).
+#else
+$O(n^2)$.
+#endif
 
-The membership test, `elem %in% set`, runs through the vector until it either sees the value `elem` or until it reach the end of the vector. The best case would be to see `elem` at the beginning of the vector, but if we consider worst-case complexity, this is another $O(n)$ runtime operation.
+The membership test, `elem %in% set`, runs through the vector until it either sees the value `elem` or until it reach the end of the vector. The best case would be to see `elem` at the beginning of the vector, but if we consider worst-case complexity, this is another 
+#ifdef EPUB
+O(n)
+#else
+$O(n)$
+#endif
+runtime operation.
 
 As an alternative implementation, consider linked lists. We insert elements in the list using the "cons" operation and we check membership by comparing `elem` with the head of the list. If the two are equal, the set contains the element. If not, we check if the `elem` is found in the rest of the list. In a pure functional language we would use recursion for this search, but here I have just implemented it using a `while` look:
 
@@ -163,7 +222,19 @@ member.linked_list_set <- function(set, elem) {
 }
 ```
 
-The `insert` operation in this implementation takes constant time. We create a new list node, set the head and tail in it, but unlike the vector implementation we do not copy anything. So for the liked list, inserting elements is an $O(1)$ operation. The membership check, however, still runs in $O(n)$ since we still do a linear search.
+The `insert` operation in this implementation takes constant time. We create a new list node, set the head and tail in it, but unlike the vector implementation we do not copy anything. So for the liked list, inserting elements is an 
+#ifdef EPUB
+O(1)
+#else
+$O(1)$
+#endif
+operation. The membership check, however, still runs in 
+#ifdef EPUB
+O(n)
+#else
+$O(n)$
+#endif
+since we still do a linear search.
 
 ## Experimental evaluation of algorithms 
 
