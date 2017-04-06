@@ -71,7 +71,41 @@ Other than that, there isn't much more language mechanics to creating abstract d
 
 ## Implementing concrete data structures in R
 
-**FIXME**
+When it comes to concrete implementations of data structures, there are a few techniques we need to translate the data structure designs into R code. In particular, we need to be able to represent what is essentially pointers, and we need to be able to represent empty data structures. Different programming languages will have different approaches to these two issues. Some allow the definition of recursive data types that naturally handle empty data structures and pointers, others have special values that always represent "empty", some have static type systems to help. We are programming in R, however, so we have to make it work here.
+
+For efficient data structures in functional programming, we need recursive data types, which essentially boils down to representing pointers. R doesn't have pointers, so we need a workaround. That workaround is using lists to define data structures and use named elements in lists as our pointers.
+
+Consider one of the simplest data structures known to man: the linked list. If you are not familiar with linked lists, you can return to this section after reading the next chapter, where we will consider these in some detail, but in short, linked lists consist of a "head"---an element we store in the list---and a "tail"---another, one element shorter, list. It is a recursive definition that we can write like this:
+
+```
+LIST = EMPTY | CONS(HEAD, LIST)
+```
+
+Here `EMPTY` is a special symbol representing the, you guessed it, empty list, and `CONS`---a traditional name for this, from the Lisp programming language---a symbol that construct a list from a `HEAD` element and another `LIST`. The definition allows lists to be infinitely long, but of course in practise a list will eventually end up at `EMPTY`.
+
+We can construct linked lists in R using R's built in `list` data structure. That structure is *not* a linked list, it is a fixed size collection of elements, possibly named. We exploit named elements to build pointers. We can implement the `CONS` construction like this:
+
+```{r}
+linked_list_cons <- function(head, tail) {
+  structure(list(head = head, tail = tail), 
+            class = "linked_list_set")
+}
+```
+
+We simply construct a `list` with two elements, `head` and `tail`. These will be references to other objects---`head` to the element we store in the list and `tail` to the rest of the list---so we are effectively using them as pointers. We then add a class to the list to make linked lists work as an implementation of an abstract data structure.
+
+Using classes and generic functions to implement polymorphic abstract data structures leads us to the second issue we need to deal with in R. We need to be able to represent empty lists. The natural choice for an empty list would be `NULL`, which represent "nothing" for the built in `list` objects, but we can't get polymorphism to work with `NULL`. We cannot give `NULL` a class. We could, of course, still work with `NULL` as the empty list and just have classes for non-empty lists, but this classes with our desire to have the empty data structures being the one point where we decide concrete data structures instead of just accessing them through an abstract interface. If we can't give empty data structures a type, we would need to use concrete update functions instead. That could make switching between different implementations cumbersome. We really *do* want to have empty data structures with classes.
+
+The trick is to use a sentinel object to represent empty structures. Sentinel objects have the same structure as non-empty data structure objects---which has the added benefit of making some implementations easier to write---but they are recognised as representing "empty". We construct a sentinel as we would any other object, but we remember it for future reference. When we construct an empty data structure, we always return the same sentinel object, and we have a function for checking emptiness that simply checks if its input is identical to the sentinel object. For linked lists, this sentinel trick would look like this:
+
+```{r}
+linked_list_nil <- linked_list_cons(NA, NULL)
+empty_linked_list_set <- function() linked_list_nil
+is_empty.linked_list_set <- function(x) 
+  identical(x, linked_list_nil)
+```
+
+The `is_empty` function is a generic function that we will use for all data structures.
 
 ## Asymptotic running time
 
@@ -87,7 +121,7 @@ First, we reduce our data to its size. We might have a set with $n$ elements, or
 
 Second, we do not consider the *actual* running time for data of size $n$---where we would need to know exactly how many operations of different kinds would be executed by an algorithm, and how long each kind of operation takes to execute---we just count the number of operations and consider them equal. This gives us some function of $n$ that tells us how many operations an algorithm or operation will execute, but not how long each operation takes. We don't care about the details when comparing most algorithms because we only care about asymptotic behaviour when doing most of our algorithmic analysis.
 
-By asymptotic behaviour, we mean the behaviour of functions when the input numbers grow large. A function $f(n)$ is an asymptotic  upper bound for another function $g(n)$ if there exists some number $N$ such that $g(n) \\leq f(n)$ whenever $n>N$. We write this in the so-called "big-O" notation as $g(n) \in O(f(n))$ or $g(n) = O(f(n))$ (the choice of notation is a little arbitrary and depends on which textbook or reference you use).
+By asymptotic behaviour, we mean the behaviour of functions when the input numbers grow large. A function $f(n)$ is an asymptotic  upper bound for another function $g(n)$ if there exists some number $N$ such that $g(n) \\leq f(n)$ whenever $n>N$. We write this in the so-called "big-O" notation as $g(n) \\in O(f(n))$ or $g(n) = O(f(n))$ (the choice of notation is a little arbitrary and depends on which textbook or reference you use).
 
 The rational behind using asymptotic complexity is that we can use it to reason about how algorithms will perform when we give them larger data sets. If we need to process data with millions of data points, we might be about to get a feeling for their running time through experiments with tens or hundreds of data points, and we might conclude that one algorithm outperforms another in this range. That, however, does not necessarily reflect how the two algorithms will compare for much larger data. If one algorithm is asymptotically faster than another it *will* eventually outperform the other, we just have to get to the point where $n$ gets large enough.
 
@@ -113,26 +147,7 @@ It represent the set as a vector, and when we add elements to the set we simply 
 
 The membership test, `elem %in% set`, runs through the vector until it either sees the value `elem` or until it reach the end of the vector. The best case would be to see `elem` at the beginning of the vector, but if we consider worst-case complexity, this is another $O(n)$ runtime operation.
 
-As an alternative implementation, consider linked lists. If you are not familiar with linked lists, you can return to this section after reading the next chapter, where we will consider these in some detail, but in short, linked lists consist of a "head"---an element we store in the list---and a "tail"---another, one element shorter, list. We can construct lists using a concatenation of a head and a tail, an operation often called "cons":
-
-
-```{r}
-linked_list_cons <- function(head, tail) {
-  structure(list(head = head, tail = tail), 
-            class = "linked_list_set")
-}
-```
-
-To make a set implementation using linked lists we need code for creating empty lists---we use the trick of defining a special sentinel object for this:
-
-```{r}
-linked_list_nil <- linked_list_cons(NA, NULL)
-empty_linked_list_set <- function() linked_list_nil
-is_empty.linked_list_set <- function(x) 
-  identical(x, linked_list_nil)
-```
-
-We insert elements in the list using the "cons" operation and we check membership by comparing `elem` with the head of the list. If the two are equal, the set contains the element. If not, we check if the `elem` is found in the rest of the list. In a pure functional language we would use recursion for this search, but here I have just implemented it using a `while` look:
+As an alternative implementation, consider linked lists. We insert elements in the list using the "cons" operation and we check membership by comparing `elem` with the head of the list. If the two are equal, the set contains the element. If not, we check if the `elem` is found in the rest of the list. In a pure functional language we would use recursion for this search, but here I have just implemented it using a `while` look:
 
 ```{r}
 insert.linked_list_set <- function(set, elem) {
@@ -151,3 +166,4 @@ member.linked_list_set <- function(set, elem) {
 The `insert` operation in this implementation takes constant time. We create a new list node, set the head and tail in it, but unlike the vector implementation we do not copy anything. So for the liked list, inserting elements is an $O(1)$ operation. The membership check, however, still runs in $O(n)$ since we still do a linear search.
 
 ## Experimental evaluation of algorithms 
+

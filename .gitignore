@@ -1,3 +1,6 @@
 book.pdf
+book.epub
+book.mobi
 pdf_book/*.md
+ebook/*.md
 .Rproj.user
