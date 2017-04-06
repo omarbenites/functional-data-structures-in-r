@@ -28,7 +28,7 @@ linked_list_cons <- function(head, tail) {
 
 linked_list_nil <- linked_list_cons(NA, NULL)
 empty_linked_list_set <- function() linked_list_nil
-is_empty.linked_list_set <- function(x) identical(x, linked_list_nil)
+is_empty.linked_list_set <- function(x) pryr::address(x) == pryr::address(linked_list_nil)
 
 insert.linked_list_set <- function(set, elem) {
   linked_list_cons(elem, set)
@@ -49,3 +49,43 @@ member(s, 1)
 s <- insert(s, 2)
 member(s, 2)
 
+
+setup <- function(empty) function(n) empty
+evaluate <- function(n, empty) {
+  set <- empty
+  elements <- sample(1:n)
+  for (elm in elements) {
+    set <- insert(set, elm)
+  }
+}
+
+stop("hep")
+
+ns <- seq(1000, 5000, by = 500)
+performance <- rbind(get_performance("list()", ns, setup(empty_list_set()), evaluate),
+                     get_performance("linked list", ns, setup(empty_linked_list_set()), evaluate))
+
+
+library(ggplot2)
+
+ggplot(performance, aes(x = as.factor(n), y = time, fill = algo)) +
+  geom_boxplot() + 
+  scale_fill_grey("Data structure") +
+  xlab(quote(n)) + ylab("Time (sec)") + theme_minimal()
+ggsave("set-comparison-direct.pdf", width = 15, height = 10, units = "cm")
+ggsave("set-comparison-direct.png", width = 15, height = 10, units = "cm")
+
+ggplot(performance, aes(x = as.factor(n), y = time / n, fill = algo)) +
+  geom_boxplot() + 
+  scale_fill_grey("Data structure") + #scale_color_discrete() +
+  xlab(quote(n)) + ylab("Time / n") + theme_minimal()
+ggsave("set-comparison-div-n.pdf", width = 15, height = 10, units = "cm")
+ggsave("set-comparison-div-n.png", width = 15, height = 10, units = "cm")
+
+
+ggplot(performance, aes(x = as.factor(n), y = time / n**2, fill = algo)) +
+  geom_boxplot() + 
+  scale_fill_grey("Data structure") + #scale_color_discrete() +
+  xlab(quote(n)) + ylab(expression(Time / n**2)) + theme_minimal()
+ggsave("set-comparison-div-n-squared.pdf", width = 15, height = 10, units = "cm")
+ggsave("set-comparison-div-n-squared.png", width = 15, height = 10, units = "cm")

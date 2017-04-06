@@ -107,6 +107,8 @@ is_empty.linked_list_set <- function(x)
 
 The `is_empty` function is a generic function that we will use for all data structures.
 
+The `identical` test isn't ideal. We really would prefer to test object-identity---making sure that the object `x` is *exactly* the same object as `linked_list_nil`, but checking object identity is not readily possible in R. With `identical` we only check that the two objects contain the same values---head and tail of the lists. Since we don't expect anyone to store `NA` in a linked list---it makes sense to have missing data in a lot of analysis, but rarely to store it in data structures---it will have to do.f
+
 ## Asymptotic running time
 
 While the operations we define in the interface of an abstract data type determines how we can use these in our programs, the *efficiency* of our programs depends on how efficiency the data structure operations are. Because of this, we often consider the time efficiency part of the interface of a data structure---if not part of the *abstract* data structure, we very much care about it when we have to pick concrete implementations of data structures for our algorithms.
@@ -238,8 +240,140 @@ since we still do a linear search.
 
 ## Experimental evaluation of algorithms 
 
+Analysing the asymptotic performance of algorithms and data structures is the only practical approach to designing programs that work on very large data, but it cannot stand alone when it comes to writing efficient code. Some experimental validation is also needed. We should always perform experiments with implementations to 1) be informed about the performance constants hidden beneath the big-O notation and 2) to validate that the performance is actually as we expect it to be.
+
+For point number one, remember that just because two algorithms are in the same "big-O category", say both are in
+#ifdef EPUB
+O(n^2^),
+#else
+$O(n^2)$,
+#endif
+this doesn't mean that they have the same walltime performance. It means that both algorithms are asymptotically bounded by some function
+#ifdef EPUB
+c * n^2^
+#else
+$c\\cdot n^2$
+#endif
+where
+#ifdef EPUB
+c
+#else
+$c$
+#endif
+is a constant. Even if both are actually running in quadratic time, so the upper bound is actually tight, they could be bounded by functions with very different constants. They might have the same asymptotic complexity, but in practise one could be vastly faster than the other. By experimenting with the algorithms we can get a feeling, at least, for how the algorithms perform in practise.
+
+Experimentation also helps us when we have analysed the *worst case* asymptotic performance of algorithms, but where the data we actually wish to analyse is different from the worst possible data. If we can create samples of data that resembles the actual data we want to analyse, we can get a feeling for how close it is to the worst case, and perhaps find that an algorithm with worse *worst case* performance actually has better *average case* performance.
+
+As for point number two for why we want to experiment with algorithms, it is very easy to write code with a different runtime complexity than we expected. Either because of simple bugs, or because we are programming in R, a very highlevel language, where language constructions potentially hide complex operations. Assigning to a vector, for example, is not a simple constant time operation if more than one variable refer to the vector. Assignment to vector elements potentially involve copying the entire vector. Sometimes it is a constant time operation; sometimes it is a linear time operation. We can deduce what it will be by carefully reading the code, but it is human to err, so it makes sense to always validate that we have the expected complexity by running experiments.
+
+In this book, I will use the `microbenchmark` package to run performance experiments. This package lets me run a number of executions of the same operation and get the time it takes back in nanoseconds. I don't need that fine a resolution, but it is nice to be able to get a list of time measurements. I collect the results in a `tibble` data frame from which I can summarise the results and plot them later. The code I use for my experiments is listed below:
+
+```r
+library(tibble)
+library(microbenchmark)
+
+get_performance_n <- function(
+  algo
+  , n
+  , setup
+  , evaluate
+  , times
+  , ...) {
+  
+  config <- setup(n)
+  benchmarks <- microbenchmark(evaluate(n, config),  
+                               times = times)
+  tibble(algo = algo, n = n, 
+         time = benchmarks$time / 1e9) # time in sec
+}
+
+get_performance <- function(
+  algo
+  , ns
+  , setup
+  , evaluate
+  , times = 10
+  , ...) {
+  f <- function(n) 
+    get_performance_n(algo, n, setup, evaluate, 
+                      times = times, ...)
+  results <- Map(f, ns)
+  do.call('rbind', results)
+}
+```
+
+The performance experiment functions let me specify a function for setting up an experiment and another for running the experiments. If I want to evaluate the time it takes to construct a set of the numbers from one up to
+#ifdef EPUB
+n
+#else
+$n$
+#endif
+with the two set implementations we have seen, I can use the `setup` function to choose the implementation---based on their respective empty structures---and I can construct the sets in the `evaluate` function:
+
+```r
+setup <- function(empty) function(n) empty
+evaluate <- function(n, empty) {
+  set <- empty
+  elements <- sample(1:n)
+  for (elm in elements) {
+    set <- insert(set, elm)
+  }
+}
+```
+
+I permute the elements I insert in the sets to avoid any systematic bias in how the data is added to the sets. There isn't any with the two implementations we have here, but for many data structures there are, so this is a way of getting an average case complexity instead of a best case or worst case performance.
+
+Running the performance measuring code with these two functions and the two set implementations, I get the results I have plotted in [@fig:set-comparison-direct]. In this figure, we can see what we expected from the asymptotic runtime analysis. The two approaches are not that different for small sets, but as the size of the data grows, the `list` implementation takes relatively longer to construct a set than the linked list implementation.
+
 ![Direct comparison of the two set construction implementations.](figures/set-comparison-direct){#fig:set-comparison-direct}
+
+We cannot directly see from [@fig:set-comparison-direct] that one data structure takes linear time and the other quadratic time. That can be hard to gleam just from a time plot. To make it easier to see, we can divide the actual running time by the expected asymptotic running time. If we have the right asymptotic running time, the time usage divided by it should flatten out around the constant that the asymptotic function is multiplied with. So, if the actual running time is
+#ifdef EPUB
+c * n^2^
+#else
+$c\\cdot n^2$
+#endif
+then dividing the running time by
+#ifdef EPUB
+n^2^
+#else
+$n^2$
+#endif
+we should see the plot flatten out around
+#ifdef EPUB
+y = c.
+#else
+$y = c$.
+#endif
+
+In [@fig:set-comparison-div-n] we see the time divided by the size of the set and in [@:set-comparison-div-n-squared] the time divided by the square of the size of the set. In [@fig:set-comparison-div-n] we see the linked list flattening out along a horizontal line while the `list` implementation keeps growing; in [@fig:set-comparison-div-n-squared] we see the `list` implementation flattening out while the linked list slowly asymptotes towards zero. This indicate that the performance analysis we did earlier is likely to be correct.
 
 ![The two set construction implementations with time divided by input size.](figures/set-comparison-div-n){#fig:set-comparison-div-n}
 
 ![The two set construction implementations with time divided by input size squared.](figures/set-comparison-div-n-squared){#fig:set-comparison-div-n-squared}
+
+If we modify the `setup` and `evaluate` functions slightly we can also measure the time usage for membership queries. Here, we would construct a set in the `setup` function and then look up a random member in the `evaluate` function:
+
+```r
+setup <- function(empty) function(n) {
+  set <- empty
+  elements <- sample(1:n)
+  for (elm in elements) {
+    set <- insert(set, elm)
+  }
+  set
+}
+evaluate <- function(n, set) {
+  member(set, sample(n, size = 1))
+}
+```
+
+In [@fig:set-comparison-member-div-n] I have plotted the results. I have plotted the time usage divided by
+#ifdef EPUB
+n
+#else
+$n$
+#endif
+since we expect both implementations to have linear time member queries. This is also what we see, but in addition we see that the linked list is slower and has a much larger variance in its performance. While both data structures have linear time member queries, the `list` implementation is faster in practise. For member queries---as we have seen, it is certainly not faster when it comes to constructing sets one element at a time.
+
+![Comparison of member queries for the two set implementations; time divided by input size.](figures/set-comparison-member-div-n){#fig:set-comparison-member-div-n}
