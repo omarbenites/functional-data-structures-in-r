@@ -25,7 +25,7 @@ Because it is the operations we can do on data, and now how we represent the dat
 
 ## Abstract data structures in R
 
-If we define abstract data structures by the operations they provide, it is natural to represent them in R by a set of generic functions. In this book, I will use the S3 object system for this.^[If you are unfamiliar with generic functions and the S3 system, I explain all this in my *Object-oriented Programming in R* book [@mailund2017oop].]
+If we define abstract data structures by the operations they provide, it is natural to represent them in R by a set of generic functions. In this book, I will use the S3 object system for this.^[If you are unfamiliar with generic functions and the S3 system, you can check out my *Object-oriented Programming in R* book [@mailund2017oop] where I explain all this.]
 
 Let's say we want a data structure that represents sets and we need two operations on it: we want to be able to insert elements into the set, and we want to be able to check if an element is found in the set. The generic interface for such a data structure could look like this:
 
@@ -238,3 +238,8 @@ since we still do a linear search.
 
 ## Experimental evaluation of algorithms 
 
+![Direct comparison of the two set construction implementations.](figures/set-comparison-direct){#fig:set-comparison-direct}
+
+![The two set construction implementations with time divided by input size.](figures/set-comparison-div-n){#fig:set-comparison-div-n}
+
+![The two set construction implementations with time divided by input size squared.](figures/set-comparison-div-n-squared){#fig:set-comparison-div-n-squared}
