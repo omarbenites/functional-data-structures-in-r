@@ -2,6 +2,10 @@
 CHAPTERS := 000_header.md \
 			01_Introduction.md \
 			02_ADT_and_complexity.md \
+			03_Immutable_and_persistent.md \
+			04_Bags_stacks_and_queues.md \
+			05_Heaps.md \
+			06_Sets_and_search_trees.md \
 			xx_conclusions.md
 
 
