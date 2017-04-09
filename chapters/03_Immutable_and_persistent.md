@@ -14,3 +14,58 @@ Now, you could reasonably argue that there is little difference between actually
 
 ## Persistent data structures
 
+Since we cannot modify data, we might as well make a virtue out of necessity. What we get out of immutable data is persistent data structures, that is data structures that retain earlier versions of themselves. Not all types of data structures have persistent versions of themselves, and some persistent data structures can be less efficient than their non-persistent, or ephemeral, counterparts, but constructing persistent data structures is an active area of research so there are data structures enough to pick from when you need one.
+
+To see what I mean by data structures being persistent in R, we look at the simple linked list again. I've defined it below, using slightly shorter names than earlier now that we don't need to remind ourselves that it is a linked list, and I'm using the sentinel trick to create the "empty" list.
+
+```r
+is_empty <- function(x) UseMethod("is_empty")
+
+list_cons <- function(elem, lst)
+  structure(list(item = elem, tail = lst), class = "linked_list")
+
+list_nil <- list_cons(NA, NULL)
+is_empty.linked_list <- function(x) identical(x, list_nil)
+empty_list <- function() list_nil
+
+list_head <- function(lst) lst$item
+list_tail <- function(lst) lst$tail
+```
+
+With these definitions, we can create three lists like this:
+
+```r
+x <- list_cons(2, list_cond(1, empty_list()))
+y <- list_cons(3, x)
+z <- list_cons(4, empty_list())
+```
+
+The lists will be represented in memory as shown in [@fig:linked-lists-construction-1]. In the figure I have shown the content of the lists, the head of each, in the white boxes and the tail pointer as a grey box and an error. I have explicitly shown the empty list sentinel in this figure, but in future figures I will simply leave it out. The variables, `x`, `y`, and `z` are shown as pointers to the lists. For `x` and `z` , the lists were created by updating the empty list; for `y` , the list was created by updating `x`. But as we can clearly see, the updated lists are still there. We just need to keep a pointer to them to get them back. That is the essence of persistent data structures and how we need to work with data structures in R.
+
+![Memory layout of linked lists.](figures/linked-lists-construction-1){#fig:linked-lists-construction-1}
+
+
+When we implemented a set through linked lists we saw how to add and search in a list. To get more of a feeling for working with immutable data structures we will try to implement a few more functions manipulating lists. One such function could be deleting elements. Since we cannot actually delete elements in a list, what the delete function has to do is to create a new list, similar to its input, that contains the same elements except the one we wish to delete.
+
+
+```r
+list_reverse_helper <- function(lst, acc) {
+  if (is_empty(lst)) acc
+  else list_reverse_helper(list_tail(lst),
+                           list_cons(list_head(lst), acc))
+}
+list_reverse_rec <- function(lst) 
+  list_reverse_helper(lst, empty_list())
+  
+list_reverse_loop <- function(lst) {
+  acc <- empty_list()
+  while (!is_empty(lst)) {
+    acc <- list_cons(list_head(lst), acc)
+    lst <- list_tail(lst)
+  }
+  acc
+}
+```
+
+![Looping versus recursive reversal of lists.](figures/list-reverse-comparison){#fig:list-reverse-comparison}
+
