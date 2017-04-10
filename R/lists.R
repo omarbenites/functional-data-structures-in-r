@@ -101,4 +101,5 @@ ggplot(performance, aes(x = as.factor(n), y = time / n, fill = algo)) +
   scale_fill_grey("Data structure") + 
   xlab(quote(n)) + ylab("Time / n") + theme_minimal()
 ggsave("list-concatenate-comparison.pdf", width = 12, height = 8, units = "cm")
+ggsave("list-concatenate-comparison.png", width = 12, height = 8, units = "cm")
 
