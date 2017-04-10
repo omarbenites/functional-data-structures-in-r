@@ -102,7 +102,7 @@ empty_tree_bag <- function() tree_bag_nil
 Then, for inserting a new element, we create a leaf. If we try to insert the element into an empty tree we should just return the leaf---otherwise we end up with non-binary nodes and then the running time goes out the window---but otherwise we just put the leaf to the left of a new root and the bag at the right. There is no need to keep the tree balanced since we don't plan to search in it or delete elements from it; for bags we just want to be able to traverse all the elements.
 
 ```r
-insert.tree_bag <- function(x, elm, ...) {
+insert.tree_bag <- function(x, elm) {
   element_leaf <- bag_node(elm, empty_tree_bag(), empty_tree_bag())
   if (is_empty(x)) element_leaf
   else bag_node(NA, element_leaf, x)
@@ -146,6 +146,28 @@ $n\log(n)$
 for the sorting and then linear time for merging them, or we could simply put all the bag elements into a search tree and extract them from there. We can sort elements in this complexity using the heap data structure, see [@sec:heaps], and we can construct and extract the unique elements in a search tree, see [@sec:sets-and-search-trees].
 
 ## Stacks
+
+Stacks are, if possible, even easier to implement using linked lists. Essentially, we just need to rename some of the functions; all the operations are readily available as list functions.
+
+We need some boiler plate code again to get the type right for empty stacks:
+
+```r
+stack_cons <- function(elem, lst)
+  structure(list(item = elem, tail = lst),
+            class = c("stack", "linked_list"))
+
+stack_nil <- stack_cons(NA, NULL)
+is_empty.stack <- function(x) identical(x, stack_nil)
+empty_stack <- function() stack_nil
+```
+
+After that, we can just reuse list functions:
+
+```r
+push.stack <- function(x, elm) stack_cons(elm, x)
+pop.stack <- function(x) list_tail(x)
+top.stack <- function(x) list_head(x)
+```
 
 
 
