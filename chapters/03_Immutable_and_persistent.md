@@ -84,3 +84,42 @@ If the lists are short, there is no immediate benefit in using one solution over
 ![Looping versus recursive reversal of lists.](figures/list-reverse-comparison){#fig:list-reverse-comparison}
 
 
+Another thing we might want to do with lists is concatenate two of them. With mutable pointers, this is something that we can do in constant time if we have pointers to both the beginning and end of our linked lists, but with immutable data it becomes a linear time function---we need to construct the new concatenated list without modifying the two original lists, so we need to move to the end of the first list and then create a new one that contains the same elements followed by the second list. So strictly speaking, it isn't a linear time algorithm in the length of both lists, but it is linear in the length of the first list.
+
+Again, it is easiest to construct the function recursively. Here, the base case is when the first list is empty. Then, the concatenation of the two lists is just the second list. Otherwise, we have to put the head of the first list in front of  the concatenation of the tail of the first list and the entire second list. As an R function, we can implement that idea like this:
+
+```r
+list_concatenate <- function(l1, l2) {
+  if (is_empty(l1)) l2
+  else list_cons(list_head(l1), 
+                 list_concatenate(list_tail(l1), l2))
+}
+```
+
+The new list we construct contain `l2` as the last part of it. We do not need to copy this---it is, after all, an immutable data structure so there is no chance of it changing in the future---but we are putting a new copy of `l1` in front of it. The structure of the lists after we concatenate them is shown in  [@fig:list-concatenation]. The two original lists are alive and well, and we have a new concatenated version.
+
+![Persistent lists in list concatenation.](figures/list-concatenation){#fig:list-concatenation}
+
+It is a little harder to implement concatenation without recursion. We construct the new list as we return from the recursive calls, so if we want to implement this iteratively, we need to emulate the call stack. We can do this, however, following the way we implemented list reversal: we can construct a reversal of the first list moving down the list and once we read the end of the first list we can construct the result of the concatenation by putting head elements in front of the new list. We can implement a looping version this way:
+
+```r
+list_concatenate_loop <- function(l1, l2) {
+  rev_l1 <- empty_list()
+  while (!is_empty(l1)) {
+    rev_l1 <- list_cons(list_head(l1), rev_l1)
+    l1 <- list_tail(l1)
+  }
+  result <- l2
+  while (!is_empty(rev_l1)) {
+    result <- list_cons(list_head(rev_l1), result)
+    rev_l1 <- list_tail(rev_l1)
+  }
+  result
+}
+```
+
+The loop version has to first construct the reversed of the first list and then construct the concatenated list, so it does more work than the recursive version, and therefore it is slower, see [@fig:list-concatenate-comparison]. I think you would also agree that the loop-version is quite a bit more complex than the recursive version. It can, however, deal with longer lists because it doesn't require a deep call stack. Still, unless we run out of stack in the recursive function, it is probably the better choice.
+
+![Time comparison of the two concatenation functions.](figures/list-concatenate-comparison){#fig:list-concatenate-comparison}
+
+
