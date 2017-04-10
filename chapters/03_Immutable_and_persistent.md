@@ -44,9 +44,11 @@ The lists will be represented in memory as shown in [@fig:linked-lists-construct
 
 ![Memory layout of linked lists.](figures/linked-lists-construction-1){#fig:linked-lists-construction-1}
 
+## List functions
 
-When we implemented a set through linked lists we saw how to add and search in a list. To get more of a feeling for working with immutable data structures we will try to implement a few more functions manipulating lists. One such function could be deleting elements. Since we cannot actually delete elements in a list, what the delete function has to do is to create a new list, similar to its input, that contains the same elements except the one we wish to delete.
+When we implemented a set through linked lists we saw how to add and search in a list. To get more of a feeling for working with immutable data structures we will try to implement a few more functions manipulating lists. We can start simply by writing a function for reversing a list. This is slightly more complicated than just searching in a list because we will have to construct the reversed list from the wrong end, so to speak. We need to first construct the list that contains the last element of the input list and the empty list. Then we need to put the second last elements at the head of this list, and so on.
 
+When writing a function that operates on persistent data, I always find it easiest to think in terms of recursion. It might not be immediately obvious how to reverse a list as a recursive function, though. If we recurse all the way down to the end of the list, we get hold of the first element we should have in the reversed list, but how do we then fit that into the list we construct going up in the recursion again? There is no simple way to do this. We can, however, use the trick of bring an accumulator with is in the recursive calls and construct the reversed list in this. If you are not familiar with accumulators in recursive functions, I cover it in some detail in my book on functional programming in R [@mailund2017functional], but you can probably follow the idea in the code below. The idea is that the variable `acc` contains the reversed list we have constructed so far. When we get to the end of the recursion, we have the entire reversed list in `acc` so we can just return it. Otherwise, we can recurse on the remaining list but put the head element at the top of the accumulator. With a recursive helper function, the list reversal can look like this:
 
 ```r
 list_reverse_helper <- function(lst, acc) {
@@ -56,7 +58,17 @@ list_reverse_helper <- function(lst, acc) {
 }
 list_reverse_rec <- function(lst) 
   list_reverse_helper(lst, empty_list())
-  
+```
+
+The running time of this function is linear---we need to run through the entire original list, but each operation we do when we construct the new list takes constant time.
+
+I have shown the iterations for reversing a list of length three in [@fig:list-reversal]. In this figure I have not shown the sentinel empty string---I just show the empty string as a pointer to nothing---but you will see how the variable `lst` refers to different positions in the original list as we recurse, while the original list doesn't change at all, while we build a new list pointed to by `acc`.
+
+![Iterations in the recursive list reversal.](figures/list-reversal){#fig:list-reversal}
+
+In a pure functional programming language, this would probably be the best approach to reversing a list. The function uses tail recursion (again, you can read about that in my other book [@mailund2017functional]), so it is essentially a loop we have written. Unfortunately, R does *not* implement tail recursion, so we have a potential problem. If we have a very long list, we can run out of stack space before we finish reversing it. We can, however, almost automatically translate tail recursive functions into loops, and a loop version for reversing a list would then look like this:
+
+```r
 list_reverse_loop <- function(lst) {
   acc <- empty_list()
   while (!is_empty(lst)) {
@@ -67,5 +79,8 @@ list_reverse_loop <- function(lst) {
 }
 ```
 
+If the lists are short, there is no immediate benefit in using one solution over the other. There is some overhead in function calls, but there is also some overhead in loops, and the two solutions work equally well for short lists, see [@fig:list-reverse-comparison]. Whenever I can get away with it, I prefer recursive solutions---I find them easier to implement and simpler to understand---but the loop version will be able to deal with much longer lists than the recursive one.
+
 ![Looping versus recursive reversal of lists.](figures/list-reverse-comparison){#fig:list-reverse-comparison}
+
 
