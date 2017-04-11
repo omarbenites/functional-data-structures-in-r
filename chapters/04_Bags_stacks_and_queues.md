@@ -169,6 +169,150 @@ pop.stack <- function(x) list_tail(x)
 top.stack <- function(x) list_head(x)
 ```
 
-
+That was pretty easy. Queues, on the other hand, those will require a bit more work...
 
 ## Queues
+
+Stacks are easy to implement because we can push elements onto the head of a list and when we need to get them again, they are right there at the head. Queues, on the other hand, have a first-in-first-out semantics, so when we need to get the element at the beginning of a queue, if we have implemented the queue as a list, it will be at the *end* of the list, not the head of the list. A straightforward implements would therefore let us enqueue elements in constant time but get the front element and dequeue it in linear time.
+
+There is a trick, however, for getting an amortised constant time operations queue. This means that the worst case time usage for each individual operations will not be constant time, but whenever we have done
+#ifdef EPUB
+n
+#else
+$n$
+#endif
+operations in total, we have spent time in
+#ifdef EPUB
+O(n).
+#else
+$O(n)$.
+#endif
+The trick is this: we keep track of two lists, one that represents the front of the queue and one that represents the back of the queue. The front of the queue is ordered such that we can get the front as the head of this list, and the back of the queue is ordered such that we can enqueue elements by putting them at the head of that list. From time to time we will have to move elements from the back list to the front lists; this we do whenever we try to get the front of the queue or try to dequeue from the queue and the front list is empty.
+
+This means that some `front` or `dequeue` operations will take linear time instead of constant time, of course. Whenever we need to move elements from the back of the queue to the front, we need to copy and reverse the back of the queue list. On average, however, a linear number of operations take a linear amount of time. To see this, imagine that each `enqueue` operation actually takes twice as long as it really does. When we `enqueue` an element we spend constant time, so doubling the time is still constant time, but you can think of this doubling as paying for enqueueing an element *and* moving it from the back to the front. The first half of the time cost is payed right away when we enqueue the element, the second half you can think of as being put in a time bank. We are saving up time that we can later use to move elements from the back of the queue to the front. Because we put time in the bank whenever we add an element to the back of the queue, we always have enough in reserve to move the elements to the front of the queue later. Not all operations are constant time, but the cost of the operations are amortised over a sequence of operations, so on average they are.
+
+So, we can implement a queue as two lists. A problem presents itself now, though. Updating and querying the data structure are not completely separate operations any longer. If we try to get the `front` element of a queue, we might have to update the queue; if the front list is empty and the back list is not, we need to move all the elements from the back list to the front list before we can get the front element. This is something we will generally want to avoid; if querying a data structure also modifies it, we will need to return both the result of queries and the updated data structure on these operations, which breaks the clean interface and makes for some ugly code. It is, however, not unusual that we have persistent data structures with good amortised time complexity, if not worst case complexity, that relies on modifying them when we query them, so implementing this queue solution gives me the opportunity to show you a general trick for handling queries that modify data structures in R: using environments that we *can* modify. After that, I will show you a simpler solution for queues---we can actually extend the representation of queues a tiny bit to avoid the problem, but this isn't always possible, so it is worth knowing the general trick.
+
+What we want, essentially, is to have `front` have the side effect of moving elements from the back of the queue and to the front in case the front list is empty. With the `dequeue` operation, we don't have a problem; that operation returns an updated queue in any case. But `front` should only return the front of the list---any new queue it might need to construct isn't returned. If it was entirely impossible for R functions to have side effects, that would be the end of this strategy, but R is not a pure functional language and some side effects are possible. We cannot modify data, but we can modify environments. We can change the binding of variables to data values. We can construct a queue that we can query and modify at the same time, if we use an environment to hold values we need to update. We can do this explicitly using an environment object, or implicitly using closures. Of course, both environment based solutions will not give us a persistent data structure. Because we do introduce side effects, we get a more traditional ephemeral data structure---but at the end of the chapter you will see how we get a persistent queue, so no worries.
+
+### Side effects through environments
+
+```r
+queue_environment <- function(front, back) {
+  e <- new.env(parent = emptyenv())
+  e$front <- front
+  e$back <- back
+  class(e) <- c("env_queue", "environment")
+  e
+}
+
+empty_env_queue <- function()
+  queue_environment(empty_list(), empty_list())
+
+is_empty.env_queue <- function(x)
+  is_empty(x$front) && is_empty(x$back)
+
+enqueue.env_queue <- function(x, elm) {
+  x$back <- list_cons(elm, x$back)
+  x
+}
+
+front.env_queue <- function(x) {
+  if (is_empty(x$front)) {
+    x$front <- list_reverse(x$back)
+    x$back <- empty_list()
+  }
+  list_head(x$front)
+}
+
+dequeue.env_queue <- function(x) {
+  if (is_empty(x$front)) {
+    x$front <- list_reverse(q$back)
+    x$back <- empty_list()
+  }
+  x$front <- list_tail(x$front)
+  x
+}
+```
+
+### Side effects through closures
+
+```r
+queue <- function(front, back)
+  list(front = front, back = back)
+
+queue_closure <- function() {
+  q <- queue(empty_list(), empty_list())
+
+  queue_is_empty <- function()
+    is_empty(q$front) && is_empty(q$back)
+
+  enqueue <- function(elm) {
+    q <<- queue(q$front, list_cons(elm, q$back))
+  }
+
+  front <- function() {
+    if (is_empty(q$front)) {
+      q <<- queue(list_reverse(q$back), empty_list())
+    }
+    list_head(q$front)
+  }
+
+  dequeue <- function() {
+    if (is_empty(q$front)) {
+      q <<- queue(list_reverse(q$back), empty_list())
+    }
+    q$front <<- list_tail(q$front)
+  }
+
+  structure(list(is_empty = queue_is_empty,
+                 enqueue = enqueue,
+                 front = front,
+                 dequeue = dequeue),
+            class = "closure_queue")
+}
+
+empty_queue <- function() queue_closure()
+```
+
+```r
+is_empty.closure_queue <- function(x) x$queue_is_empty()
+enqueue.closure_queue <- function(x, elm) {
+  x$enqueue(elm)
+  x
+}
+front.closure_queue <- function(x) x$front()
+dequeue.closure_queue <- function(x) {
+  x$dequeue()
+  x
+}
+```
+
+### A purely functional queue
+
+```r
+queue_extended <- function(x, front, back)
+  structure(list(x = x, front = front, back = back),
+            class = "extended_queue")
+
+empty_extended_queue <- function() queue_extended(NA, empty_list(), empty_list())
+is_empty.extended_queue <- function(x)
+  is_empty(x$front) && is_empty(x$back)
+
+enqueue.extended_queue <- function(x, elm)
+  queue_extended(ifelse(is_empty(x$back), elm, x$x),
+                 x$front, list_cons(elm, x$back))
+
+front.extended_queue <- function(x) {
+  if (is_empty(x)) stop("Taking the front of an empty list")
+  if (is_empty(x$front)) x$x
+  else list_head(x$front)
+}
+
+dequeue.extended_queue <- function(x) {
+  if (is_empty(x)) stop("Taking the front of an empty list")
+  if (is_empty(x$front))
+    x <- queue_extended(x$x, list_reverse(x$back), empty_list())
+  queue_extended(NA, list_tail(x$front), x$back)
+}
+```
