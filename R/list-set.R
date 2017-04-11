@@ -78,8 +78,8 @@ ggplot(performance, aes(x = as.factor(n), y = time / n, fill = algo)) +
   geom_boxplot() + 
   scale_fill_grey("Data structure") + #scale_color_discrete() +
   xlab(quote(n)) + ylab("Time / n") + theme_minimal()
-ggsave("set-comparison-div-n.pdf", width = 15, height = 10, units = "cm")
-ggsave("set-comparison-div-n.png", width = 15, height = 10, units = "cm")
+ggsave("set-comparison-div-n.pdf", width = 12, height = 8, units = "cm")
+ggsave("set-comparison-div-n.png", width = 12, height = 8, units = "cm")
 
 
 ggplot(performance, aes(x = as.factor(n), y = time / n**2, fill = algo)) +
