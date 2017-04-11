@@ -297,7 +297,7 @@ Finally, to remove an element from he front of the queue, we just replace the fr
 ```r
 dequeue.env_queue <- function(x) {
   if (is_empty(x$front)) {
-    x$front <- list_reverse(q$back)
+    x$front <- list_reverse(x$back)
     x$back <- empty_list()
   }
   x$front <- list_tail(x$front)
@@ -340,9 +340,9 @@ queue_closure <- function() {
 
   dequeue <- function() {
     if (is_empty(q$front)) {
-      q <<- queue(list_reverse(q$back), empty_list())
-    }
-    q$front <<- list_tail(q$front)
+      q <<- queue(list_tail(list_reverse(q$back)), empty_list())
+    } else {
+      q <<- queue(list_tail(q$front), q$back)
   }
 
   structure(list(is_empty = queue_is_empty,
@@ -382,31 +382,50 @@ As I mentioned, I find the implementation using an explicit environment simpler 
 
 ### A purely functional queue
 
-
+The only reason we couldn't make the queue data structure purely functional was that the accessor function `front` needed to get to the last element in the back list, which we cannot do in amortised constant time unless we modify the queue when the front list is empty. Well, it is only one element we need access to in special cases of calls to `front`, so we can make a purely functional---truly persistent---queue if we just explicitly remember that value in a way where we can get to it in constant time. We can make an extended version of the queue that contains the two lists, front and back, *and* the element we need to return if we call `front` on a queue when the front list is empty:
 
 ```r
 queue_extended <- function(x, front, back)
   structure(list(x = x, front = front, back = back),
             class = "extended_queue")
+```
 
-empty_extended_queue <- function() queue_extended(NA, empty_list(), empty_list())
+With this representation, we will require that we always satisfy the invariant that `x` refers to the last element in the `back` list when the list is not empty. If `back` is empty, we don't care what `x` is.
+
+We don't need a sentinel object for this implementation of queues; testing whether a queue is empty can still be done just by testing if the two lists are empty. We can create an empty queue from two empty lists, and if they are both empty, we don't need to have any particular value for the last element of the back list---we already know it is empty so we shouldn't try to get to the front of the queue in either case.
+
+```r
+empty_extended_queue <- function()
+  queue_extended(NA, empty_list(), empty_list())
+  
 is_empty.extended_queue <- function(x)
   is_empty(x$front) && is_empty(x$back)
+```
 
+When we add an element to the back of a queue, we now need to remember the value of the element if it is going to end up at the back of the back list. It will, if the back queue is empty, so if `back` is empty, we remember the value we add in `x`; otherwise, we keep remembering the value we already stored in the queue:
+
+```r
 enqueue.extended_queue <- function(x, elm)
   queue_extended(ifelse(is_empty(x$back), elm, x$x),
                  x$front, list_cons(elm, x$back))
+```
 
+When we need the front element of the queue, we are in one of two situations: either the `front` list is empty, in which case we need to return the last element in `back`, which we have stored in `x`. If `front` is not empty, we can just return the head of that list:
+
+```r
 front.extended_queue <- function(x) {
-  if (is_empty(x)) stop("Taking the front of an empty list")
   if (is_empty(x$front)) x$x
   else list_head(x$front)
 }
+```
 
+When we remove the front element of the queue, we should just remove the front element of `front`, except when `front` is empty. Then we should reverse `back` and put it at the front, and when we empty `back` then `x` doesn't have any particular meaning any longer:
+
+```r
 dequeue.extended_queue <- function(x) {
-  if (is_empty(x)) stop("Taking the front of an empty list")
   if (is_empty(x$front))
-    x <- queue_extended(x$x, list_reverse(x$back), empty_list())
-  queue_extended(NA, list_tail(x$front), x$back)
+    x <- queue_extended(NA, list_reverse(x$back), empty_list())
+  queue_extended(x$x, list_tail(x$front), x$back)
 }
 ```
+
