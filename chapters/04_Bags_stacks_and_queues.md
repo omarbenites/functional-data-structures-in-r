@@ -431,17 +431,20 @@ dequeue.extended_queue <- function(x) {
 
 ### Time comparisons
 
-We can compare the time usage of the three queue implementations in practise, see [@fig:queues-comparisons]. The two environment based implementations run in the same wall time but there is an extra overhead in the functional implementation. This is caused by wrapping the newly constructed queues in a new structure each time---on top of wrapping lists in structures whenever we manipulate them.
+We can compare the time usage of the three queue implementations in practise, see [@fig:queue-comparisons]. The two environment based implementations run in the same wall time but there is an extra overhead in the functional implementation. This is caused by wrapping the newly constructed queues in a new structure each time---on top of wrapping lists in structures whenever we manipulate them.
 
-![Comparison of the running time for constructing and emptying the three implementations of queues.](figures/queues-comparisons){#fig:queues-comparisons)
+![Comparison of the running time for constructing and emptying the three implementations of queues.](figures/queue-comparisons){#fig:queue-comparisons}
 
 We could speed up the implementation if we were willing to not wrap the implementation as an abstract data structure---and we could do the same if we didn't represent the lists as objects and just used head and tail pointers---but implementing a functional queue with the amortised complexity to avoid side-effects isn't as useful as it might sound. The amortised complexity we achieve is very good if we treat the queues as ephemeral data structures, but not actually that great for persistent data structures as you might think. The amortised analysis simply doesn't work if we want to use the queue as a persistent data structure.
 
 ### Amortised time complexity and persistent data structures
 
+When we work with data structures with amortised complexity, we imagine that some of the cheap operations actually cost a little more than they do, and then we can afford some of the more expensive operations for the "computation" we put in the bank when we invoke the cheap operations. Thinking in terms of the average cost of a sequence of operations, instead of having to make guarantees about each individual operation, often makes the analysis and construction of data structures simpler, and quite often also faster because we can work with simpler implementations. It is sound reasoning when we consider a sequence of operations where the data structure we update in one operation becomes the input to the next operation. If we want to use the data structures as persistent data, however, the reasoning fall apart.
 
+Imagine that we insert a number of elements in the back of a queue, which now has a full "back" list and an empty "front" list. We have now paid for one reversal of the back list when we do the first dequeuing, but if we treat the queue as a persistent data structure, we could end up dequeuing from the same instance several times. By considering the insertions into the queue as twice as expensive as they actually are---as we did in the analysis---we can pay for the first dequeuing, reversing the list and all, but it only pays for the *first* reversal of the back list. If the queue is persistent, there is nothing that prevents us from calling a dequeue operation on the same queue several times. Each call to `dequeue` will be an expensive operation, linear in the length of the back list, but the savings we put in the bank when we inserted elements in the queue only pays for the first one. The amortised analysis is really only valid if we treat the structure as ephemeral.
 
-### Dequeues
+The queue implementations we have seen here are pretty fast if we treat them as ephemeral, but if we want persistent queues with a constant time adding and removing operations, each operation has to be constant time operations. 
 
-### Worst-case constant time lazy queues
+### Double-ended queues
+
 
