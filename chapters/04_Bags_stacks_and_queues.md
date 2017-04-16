@@ -429,3 +429,19 @@ dequeue.extended_queue <- function(x) {
 }
 ```
 
+### Time comparisons
+
+We can compare the time usage of the three queue implementations in practise, see [@fig:queues-comparisons]. The two environment based implementations run in the same wall time but there is an extra overhead in the functional implementation. This is caused by wrapping the newly constructed queues in a new structure each time---on top of wrapping lists in structures whenever we manipulate them.
+
+![Comparison of the running time for constructing and emptying the three implementations of queues.](figures/queues-comparisons){#fig:queues-comparisons)
+
+We could speed up the implementation if we were willing to not wrap the implementation as an abstract data structure---and we could do the same if we didn't represent the lists as objects and just used head and tail pointers---but implementing a functional queue with the amortised complexity to avoid side-effects isn't as useful as it might sound. The amortised complexity we achieve is very good if we treat the queues as ephemeral data structures, but not actually that great for persistent data structures as you might think. The amortised analysis simply doesn't work if we want to use the queue as a persistent data structure.
+
+### Amortised time complexity and persistent data structures
+
+
+
+### Dequeues
+
+### Worst-case constant time lazy queues
+

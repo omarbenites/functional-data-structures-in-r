@@ -27,3 +27,9 @@ ggplot(performance, aes(x = as.factor(n), y = time / n, fill = algo)) +
   xlab(quote(n)) + ylab(expression(Time / n)) + theme_minimal()
 #ggsave("queue-comparisons.pdf", width = 12, height = 8, units = "cm")
 #ggsave("queue-comparisons.png", width = 12, height = 8, units = "cm")
+
+
+
+
+ns <- seq(50, 100, by = 10)
+get_performance("functional queue", ns, setup, evaluate(empty_extended_queue()))
