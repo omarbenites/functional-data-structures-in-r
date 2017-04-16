@@ -447,4 +447,229 @@ The queue implementations we have seen here are pretty fast if we treat them as 
 
 ### Double-ended queues
 
+A double-ended queue, also known as a "deque", is a queue where you can add and remove elements from both ends of the queue. The operations on a double-ended queue, as an abstract data structure, would be these:
+
+```r
+enqueue_front <- function(x, elm) UseMethod("enqueue_front")
+enqueue_back <- function(x, elm) UseMethod("enqueue_back")
+
+front <- function(x) UseMethod("front")
+back <- function(x) UseMethod("back")
+
+dequeue_front <- function(x) UseMethod("dequeue_front")
+dequeue_back <- function(x) UseMethod("dequeue_back")
+```
+
+We can implement a double-ended queue using two lists, a front and a back list, just as we did with queues. We can easily add elements to both the front and the back by putting new elements at the head of the two lists. If we want to get the front or back of the elements, or if we want to remove the front or the back element, we can just access the head of the two lists, as long as they are not empty. If they are empty, though, we have to be a little more careful.
+
+The problem with just following the same procedure as we did for queues is that if we reverse the front or back list whenever the other list is empty, we might end up with linear time operations when we switch between removing elements from the front and from the back. This is something we want to avoid, and we can do that with a small modification to the procedure: instead of reversing and moving an entire list, when the other is empty, we only move half the other list. We will end up with the same amortised complexity as for the queues---which means that as long as we implement double-ended queues as ephemeral data structures, we get constant time operations.
+
+The complexity analysis is a little more involved. We can still think of the insertion operations as being slightly more expensive, taking one "computation coin" to execute and then putting one "computation coin" in the bank, but the bank holdings we now have to think of as the difference between the length of the front list and the back list. If you are familiar with amortised analysis, you should think of a potential function that is the absolute difference between the length of the front list and the back list, but to keep it simple here, we will still think in terms of putting computation coins in a bank that we can then use to pay for expensive operations later on. It is just that the coin we put in the bank when we insert an element won't necessarily pay for all the times that individual element gets moved between the lists. The same element might be moved between the lists more than once, which puts that element in debt, but we can recover that debt by using coins that are payed for by other elements.
+
+If we let *f* denote the number of elements in the front list, and *b* denote the number of elements in the back list, then we want the invariant to be that we have abs(*f*-*b*) in the bank to pay for future operations. If we insert an element in the shorter of the two lists, we might think of inserting an extra computation coin in the bank, but we don't really need to, to satisfy the invariant, so it is just extra money we won't need. If we insert an element in the longer list, however, we need to pain an extra coin to pay for the increased difference between the list lengths. That is okay, it is still a constant time operation even if it is twice as expensive as just inserting an element.
+
+If one of the lists is empty, however, and we need to get an element from it, we need to move some elements. The cost of that, we need to take out of the bank. If the invariant is satisfied, though, we have as many coins in the bank as the length of the non-empty list. If we move half the elements in that list to the other list, we spend half the savings we have in the bank, but what remains is still enough to pay for the abs(**f**-**b**) invariant to be true. If the two lists end up being exactly the same length, we only require that there is a non-negative amount of coins in the bank---which will be true if we only spend half the coins there---and if the lists are one off, we need one remaining coin, which again will be true if we only spend half the coins there. So we are good.
+
+So, to implement double-ended queues with a constant time (amortised) operation complexity, we just need to move half the lists when we need to move anything, rather than the entire lists.
+
+
+To implement double-ended queues, we need two operations: get the first half of a list, and get the second half of a list. 
+
+If we know how many elements are in half the list, we can use these two functions for this:
+
+```r
+list_get_n_reversed <- function(lst, n) {
+  l <- empty_list()
+  while (n > 0) {
+    l <- list_cons(list_head(lst), l)
+    lst <- list_tail(lst)
+    n <- n - 1
+  }
+  l
+}
+
+list_drop_n <- function(lst, n) {
+  l <- lst
+  while (n > 0) {
+    l <- list_tail(l)
+    n <- n - 1
+  }
+  l
+}
+```
+
+Both functions will do their work in time 
+#ifdef EPUB
+n
+#else
+$n$
+#endif
+so we should be able to move elements from one list to the other in the time we have, if we let *n* be half the length of the list we move elements from.
+
+We can get the list length like this:
+
+```r
+list_length <- function(lst) {
+  n <- 0
+  while (!is_empty(lst)) {
+    lst <- lst$tail
+    n <- n + 1
+  }
+  n
+}
+```
+
+We can then implement the double-ended queue like this:
+
+```r
+deque_environment <- function(front, back) {
+  e <- new.env(parent = emptyenv())
+  e$front <- front
+  e$back <- back
+  class(e) <- c("env_deque", "environment")
+  e
+}
+
+empty_env_deque <- function()
+  deque_environment(empty_list(), empty_list())
+
+is_empty.env_deque <- function(x)
+  is_empty(x$front) && is_empty(x$back)
+
+enqueue_back.env_deque <- function(x, elm) {
+  x$back <- list_cons(elm, x$back)
+  x
+}
+enqueue_front.env_deque <- function(x, elm) {
+  x$front <- list_cons(elm, x$front)
+  x
+}
+
+front.env_deque <- function(x) {
+  if (is_empty(x$front)) {
+    n <- list_length(x$back)
+    x$front <- list_get_n_reversed(x$back, ceiling(n))
+    x$back <- list_drop_n(x$back, ceiling(n))
+  }
+  list_head(x$front)
+}
+back.env_deque <- function(x) {
+  if (is_empty(x$back)) {
+    n <- list_length(x$front)
+    x$back <- list_get_n_reversed(x$front, ceiling(n))
+    x$front <- list_drop_n(x$front, ceiling(n))
+  }
+  list_head(x$back)
+}
+
+dequeue_front.env_deque <- function(x) {
+  if (is_empty(x$front)) {
+    n <- list_length(x$back)
+    x$front <- list_get_n_reversed(x$back, ceiling(n))
+    x$back <- list_drop_n(x$back, ceiling(n))
+  }
+  x$front <- list_tail(x$front)
+  x
+}
+dequeue_back.env_deque <- function(x) {
+  if (is_empty(x$back)) {
+    n <- list_length(x$front)
+    x$back <- list_get_n_reversed(x$front, ceiling(n))
+    x$front <- list_drop_n(x$front, ceiling(n))
+  }
+  x$back <- list_tail(x$back)
+  x
+}
+```
+
+If you are a little bit uncomfortable now, you should be. If you are not, I want you to look over the solution we have so far and think about where I might have been cheating you a little.
+
+If you don't see it yet, I will give you a hint: we have half the length of the list we are taking elements from to spend from the bank, but are we using more than that?
+
+Do you see it now? We are okay in pretty much all the operations we are doing, but how do we get the length of the list?
+
+It is very easy to get it *almost* right when you implement data structures, but the slightest errors can hurt the performance, so I left a little trap in this data structure to keep you on your toes. What we have right now is *almost* right, but we do spend a little too much time in reversing half of the lists. We only have coins in the bank for taking half a list, but to get the length of the list, we spend the full list length in coins. To figure out how long a list is, the implementation I showed you before runs through the entire list. That is too much for our analysis to be true. If you take the implementation we have so far and experiment with it to measure the running time you will see this---which is why I encourage you to always test the implementations with measurements and not just rely on analyses. It doesn't matter how careful we are in the design and analysis of a data structure, if we get a slight implementation detail wrong, it all goes out the window---always check if the performance you expect from your analysis is actually correct when measured against wall time.
+
+The solution to this problem is simple enough, though. If we can figure out the lengths of the two lists in constant time, we can also move half of them in the allotted time. The simplest way of knowing the length of the lists when we need it is to simply keep track of it. So we can add the lengths of the lists to the double-ended queue as extra information.
+
+```r
+deque_environment <- function(front, back, 
+                              front_length, back_length) {
+  e <- new.env(parent = emptyenv())
+  e$front <- front
+  e$back <- back
+  e$front_length <- front_length
+  e$back_length <- back_length
+  class(e) <- c("env_deque", "environment")
+  e
+}
+
+empty_env_deque <- function()
+  deque_environment(empty_list(), empty_list(), 0, 0)
+```
+
+The test for emptiness doesn't have to change---there, we just check if the lists are empty, and if we are correct in keeping track of the lengths, we will be correct there as well.
+
+Whenever we add an element to a list, we have to add one to the length bookkeeping as well:
+
+```r
+enqueue_back.env_deque <- function(x, elm) {
+  x$back <- list_cons(elm, x$back)
+  x$back_length <- x$back_length + 1
+  x
+}
+enqueue_front.env_deque <- function(x, elm) {
+  x$front <- list_cons(elm, x$front)
+  x$front_length <- x$front_length + 1
+  x
+}
+```
+
+Now, when modifying the lists, we need to update the lengths as well. That is used several places, so we can implement to helper functions to keep track of it like this:
+
+```r
+move_front_to_back <- function(x) {
+  n <- list_length(x$front)
+  m <- ceiling(n)
+  x$back <- list_get_n_reversed(x$front, m)
+  x$front <- list_drop_n(x$front, m)
+  x$back_length <- m
+  x$front_length <- n - m
+}
+
+move_back_to_front <- function(x) {
+  n <- list_length(x$back)
+  m <- ceiling(n)
+  x$front <- list_get_n_reversed(x$back, m)
+  x$back <- list_drop_n(x$back, m)
+  x$front_length <- m
+  x$back_length <- n - m
+}
+```
+
+Then, we can update the operations like this:
+
+```r
+front.env_deque <- function(x) {
+  if (is_empty(x$front)) move_back_to_front(x)
+  list_head(x$front)
+}
+back.env_deque <- function(x) {
+  if (is_empty(x$back)) move_front_to_back(x)
+  list_head(x$back)
+}
+
+dequeue_front.env_deque <- function(x) {
+  if (is_empty(x$front)) move_back_to_front(x)
+  x$front <- list_tail(x$front)
+  x
+}
+dequeue_back.env_deque <- function(x) {
+  if (is_empty(x$back)) move_front_to_back(x)
+  x$back <- list_tail(x$back)
+  x
+}
+```
+
+Now, we only spend time moving elements linearly in the number of elements we move, and then the amortised analysis invariant is satisfied.
 
