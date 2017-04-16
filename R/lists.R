@@ -44,16 +44,17 @@ evaluate_loop <- function(n, lst) {
 }
 
 
-#ns <- seq(100, 500, by = 50)
-#performance <- rbind(get_performance("recursive", ns, setup, evaluate_rec),
-#                     get_performance("loop", ns, setup, evaluate_loop))
+ns <- seq(100, 500, by = 50)
+performance <- rbind(get_performance("recursive", ns, setup, evaluate_rec),
+                     get_performance("loop", ns, setup, evaluate_loop))
 
 library(ggplot2)
-#ggplot(performance, aes(x = as.factor(n), y = time / n, fill = algo)) +
-#  geom_boxplot() + 
-#  scale_fill_grey("Data structure") + 
-#  xlab(quote(n)) + ylab("Time / n") + theme_minimal()
-#ggsave("list-reverse-comparison.pdf", width = 12, height = 8, units = "cm")
+ggplot(performance, aes(x = as.factor(n), y = time / n, fill = algo)) +
+  geom_boxplot() + 
+  scale_fill_grey("Data structure") + 
+  xlab(quote(n)) + ylab("Time / n") + theme_minimal()
+ggsave("list-reverse-comparison.pdf", width = 12, height = 8, units = "cm")
+ggsave("list-reverse-comparison.png", width = 12, height = 8, units = "cm")
 
 
 list_concatenate <- function(l1, l2) {
