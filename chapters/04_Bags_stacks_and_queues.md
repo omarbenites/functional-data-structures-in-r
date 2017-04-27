@@ -673,3 +673,60 @@ dequeue_back.env_deque <- function(x) {
 
 Now, we only spend time moving elements linearly in the number of elements we move, and then the amortised analysis invariant is satisfied.
 
+
+## Lazy queues
+
+It is possible to implement worst-case 
+#ifdef EPUB
+O(1)
+#else
+$O(1)$
+#endif
+operation queue as well as amortised queues by exploiting lazy evaluation. For the rest of this chapter, I will describe an implementation of these following @okasaki_1995.
+
+Because lazy evaluation is not the natural evaluation strategy in R, except for function parameters that *are* lazy evaluated, we have to implement it ourselves. This adds some overhead to the data structure, in the form of extra function evaluations, so this implementation cannot compete with the previous data structures we have seen in terms of speed, but since all operations are in constant time, you *can* use it as a persistent queue.
+
+### Implementing lazy evaluation
+
+Expressions in R are evaluated immediately except for expressions that are parsed as parameters to functions, see @mailund2017functional. This means that an expression such as
+
+```r
+1:10000
+```
+
+immediately creates a vector of ten thousand elements. However, if we write a function like this:
+
+```r
+f <- function(x, y) x
+```
+
+where we don't access y, and call it with parameters like these
+
+```r
+f(5, 1:10000)
+```
+
+the vector expression is never evaluated.
+
+We can thus wrap expressions we don't want to evaluate just yet in thunks, functions that do not take any arguments but evaluate an expression. For example, we could write a function like this:
+
+```{r}
+lazy_thunk <- function(expr) function() expr
+```
+
+It takes the expression `expr` and returns a thunk that will evaluate it when we call it. It will only evaluate it the first time, though, since R remembers the values of such parameters once they are evaluated. We can see this in the code below:
+
+```{r}
+library(microbenchmark)
+microbenchmark(lazy_vector <- lazy_thunk(1:100000), times = 1)
+microbenchmark(lazy_vector()[1], times = 1)
+microbenchmark(lazy_vector()[1], times = 1)
+```
+
+The construction of the vector is cheap because the vector expression isn't actually evaluated when we construct it. The first time we access the vector, though, and notice that we need to evaluate `lazy_vector` as a thunk to get to the expression it wraps, we will have to construct the actual vector. This is a relatively expensive operation, but the second time we access it, it is already constructed and we will have a cheap operation.
+
+We have to be a little careful with functions such as `lazy_thunk`. The `expr` parameter will be evaluated when we call the thunk the first time, but it will be evaluated in the calling scope where we constructed the thunk but as it looks when we evaluate the thunk. If it depends on variables that have been modified since we created the thunk, the expression we get might not be the one we want. The function `force` is typically used to alleviate this problem. It forces the evaluation of a parameter so it evaluates to values that matches the expression at the time the thunk is constructed. This won't work here, though---we explicitly do not want the expression evaluated.
+
+If we are careful with how we use thunks and make sure that we give them expressions where any variables have already been forced, though, we can exploit lazy evaluation of function parameters to implement lazy expressions.
+
+### Lazy lists

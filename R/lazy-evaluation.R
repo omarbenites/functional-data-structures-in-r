@@ -1,4 +1,12 @@
 
+
+lazy_thunk <- function(expr) function() expr
+
+library(microbenchmark)
+microbenchmark(lazy_vector <- lazy_thunk(1:10000), times = 1)
+microbenchmark(lazy_vector()[1], times = 1)
+microbenchmark(lazy_vector()[1], times = 1)
+
 nil <- function() NULL
 cons <- function(car, cdr) {
   force(car)
@@ -77,3 +85,38 @@ microbenchmark(length(lst), times = 1) # slow operation -- needs to reverse l2
 microbenchmark(length(lst), times = 1) # faster operation
 
 microbenchmark(length(cat(l1, l2)), times = 1) # faster operation
+
+
+lazy_cat <- function(l1, l2) {
+  force(l1)
+  force(l2)
+  first <- l1()
+  if (is.null(first)) l2
+  else {
+    lazy_thunk <- function(lst) function() lst()
+    lazy_thunk(cons(first$car, lazy_cat(first$cdr, l2)))
+  }
+}
+
+microbenchmark(lst <- cat(l1, reverse(l2)), times = 1) # fast operation
+microbenchmark(car(lst), times = 1) # slow operation -- needs to copy l1
+microbenchmark(lst <- lazy_cat(l1, l2), times = 1) # fast operation
+microbenchmark(car(lst), times = 1) # relatively fast
+
+lazy_reverse <- function(lst) {
+  rev <- function(l, t) {
+    force(l)
+    force(t)
+    first <- l()
+    if (is.null(first)) t
+    else {
+      lazy_thunk <- function(lst) function() lst()
+      lazy_thunk(rev(first$cdr, cons(first$car, t)))
+    }
+  }
+  rev(lst, nil)
+}
+
+microbenchmark(lst <- lazy_reverse(vector_to_list(1:10)), times = 1)
+microbenchmark(car(lst), times = 1)
+microbenchmark(car(lst), times = 1)
