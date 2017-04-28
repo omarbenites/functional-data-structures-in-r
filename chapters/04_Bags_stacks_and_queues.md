@@ -846,7 +846,7 @@ cat <- function(l1, l2) {
   if (is_nil(l1)) l2
   else {
     lazy_thunk <- function(lst) function() lst()
-    lazy_thunk(cons(l1()$car, cat(l1()$cdr, l2)))
+    lazy_thunk(cons(car(l1), cat(cdr(l1), l2)))
   }
 }
 ```
@@ -882,7 +882,7 @@ reverse <- function(lst) {
     if (is_nil(l)) t
     else {
       lazy_thunk <- function(lst) function() lst()
-      lazy_thunk(r(l()$cdr, cons(l()$car, t)))
+      lazy_thunk(r(cdr(l), cons(car(l), t)))
     }
   }
   r(lst, nil)
@@ -934,8 +934,165 @@ Since reversing the back list of a queue is the expensive operation, and since w
 
 To do slightly better, we will need to construct lists that contain partly reversed and partly correctly-ordered lists as we update the queue.
 
-### Amortised lazy queues
+### Amortised constant time, logarithmic worst-case, lazy queues
 
+Following @okasaki_1995 we will work our way up to a queue solution with worst-case constant time operations by first implementing a version that has constant time amortised operations, even when used as a persistent data structure, and where the worst-case time usage for any operation is logarithmic in the queue length. This is an improvement upon the previous queues on both accounts, at least if we use the implementation as a persistent queue or if we need it to be fast for each operation, for example if we use it in interactive code. The lazy evaluation does add some overhead, see [@fig:lazy-queue-comparisons], so if these features are not needed, the environment based queue is still superior.
+
+![Comparison between the ephemeral environment based queue and lazy queues.](figures/lazy-queue-comparisons){#fig:lazy-queue-comparisons}
+
+We represent the queue as a front and back list as before, and we have to keep track of the list lengths in this data structure as well. In this case we will use lazy lists, but we will get to that. The constructor for the queue looks like this:
+
+```r
+lazy_queue <- function(front, back, front_length, back_length) {
+  structure(list(front = front, back = back, 
+                 front_length = front_length, 
+                 back_length = back_length),
+            class = "lazy_queue")
+}
+```
+
+We can construct an empty queue, and check for emptiness, like this:
+
+```r
+empty_lazy_queue <- function() lazy_queue(nil, nil, 0, 0)
+is_empty.lazy_queue <- function(x) 
+  is_nil(x$front) && is_nil(x$back)
+```
+
+We will have the following invariant for the queue: the back list can at most be one longer than the front list. Whenever the back list grows larger than the front list, we are going to move  the elements in it to the front queue, but we will do so lazily.
+
+The implementation of the queue is based on a "rotate" function that combines concatenation and reversal. The function looks like this:
+
+```r
+rot <- function(front, back, a) {
+  force(front)
+  force(back)
+  force(a)
+  if (is_nil(front)) cons(car(back), a)
+  else {
+    lazy_thunk <- function(lst) function() lst()
+    lazy_thunk(cons(car(front), 
+                    rot(cdr(front), cdr(back), cons(car(back), a))))
+  }
+}
+```
+
+It operates on three lists, the front list, the back list, and an accumulator. The idea behind the rotation function is that it concatenates the front list to the back list in a lazy recursion, just as the concatenation function we wrote above, but at the same time it reverses the back list one step at a time. We will call it whenever the front list is one element shorter than the back list. For each step in the concatenation, we also handle one step of the reversal. If the front list is empty, we put the first element of the back list in front of the accumulator. The queue invariant guarantees us that if the front list is empty, the back queue only contains a single element. The recursive call, wrapped in a thunk, puts the first element of the front list at the beginning of a list and then makes the continuation of the list another rotation call.
+
+To make sure that we call the rotate function whenever we need to, to satisfy the invariant, we wrap all queue construction calls in the following function:
+
+```r
+make_q <- function(front, back, front_length, back_length) {
+  if (back_length <= front_length)
+    lazy_queue(front, back, front_length, back_length)
+  else
+    lazy_queue(rot(front, back, nil), nil, 
+               front_length + back_length, 0)
+}
+```
+
+Its only purpose is to call rotate when we need to. Otherwise, it just construct a queue.
+
+The implementation of the queue abstract interface is relatively straightforward once we have these two functions:
+
+```r
+enqueue.lazy_queue <- function(x, elm) 
+  make_q(x$front, cons(elm, x$back),
+         x$front_length, x$back_length + 1)
+
+front.lazy_queue <- function(x) car(x$front)
+
+dequeue.lazy_queue <- function(x) 
+  make_q(cdr(x$front), x$back,
+         x$front_length - 1, x$back_length)
+```
+
+When we enqueue an element, we add it to the back list, when we need the front element, we get it from the front list---which can't be empty unless the entire queue is empty---and when we dequeue an element we just shorten the front list. All this is wrapped in calls to `make_q` that calls `rot` when needed.
+
+For the amortised complexity analysis we can reason as before: whenever we add an element to the back queue it also pays for moving the element to the front queue at a later time. So any sequence of operations will be bounded by the number of constant-time insertions, just as before. Because the lazy evaluation mechanism we have implemented remembers the result of evaluating an expression, we also get the same complexity if we use the queue persistently. If we need to perform expensive operations, which we will need when we remove elements from the front of the queue, this might be costly the *first* time we remove an element from a given queue, but if we remove it again, because we do operations on a saved queue after we have modified it somewhere else, then the operation will be cheap.
+
+For the worst-case complexity analysis, we first notice that enqueue operations always take constant time. We first add an element to the front of the back list, which is a constant time operation, and after that we might call `rot`. Calling `rot` only constructs a thunk, however, which again is a constant time operation. We don't pay for rotations until we access the list a `rot` call wraps.
+
+With `front` and `dequeue` we access lazy lists, so here we might have to actually call the rotation operation. Although the operation looks like it would be a constant time operation
+
+```r
+lazy_thunk(cons(car(front), 
+                rot(cdr(front), cdr(back), cons(car(back), a))))
+```
+
+this is a deception. We construct a new list from the first element in `front` and then add a thunk to the end of it, and this is a constant time operation if `front` is a simple list, but it *could* involve another call to `rot` that we need to call recursively. If `front` is another call to `rot`, however, the front of the list we have in that call cannot be longer than half the length of `front` because we only construct `rot` thunks when the front is the same length as the back list. So we might have to call `rot` several times, but each time, the front list will have half the length as the previous. This mean that we can at most have 
+#ifdef EPUB
+log(n)
+#else
+$\\log(n)$
+#endif
+calls to `rot`, so each call to `front` and `dequeue` can at most involve logarithmically many operations.
+
+To get constant worst-time operations, we need to do a little more rotation work in enqueuing operations so these will pay for reversals, but before we get to that, I just want to take a closer look at the `rot` function and notice some R specific technicalities.
+
+In the `rot` function we `force` all the parameters.
+
+```r
+rot <- function(front, back, a) {
+  force(front)
+  force(back)
+  force(a)
+  if (is_nil(front)) cons(car(back), a)
+  else {
+    lazy_thunk <- function(lst) function() lst()
+    lazy_thunk(cons(car(front), 
+                    rot(cdr(front), cdr(back), cons(car(back), a))))
+  }
+}
+```
+
+We typically have to `force` arguments to avoid problems that occur when expressions refer to variables that might have changed in the calling environment. That never happens in this queue implementation. Our queue implementation is purely functional and we never modify any variables. So, in theory, we shouldn't have to `force` the parameters. It turns out that we *do* need to `force` them, at least we do need to `force` the accumulator, and exploring why gives us some insights into lazy evaluation in R.
+
+Try modifying the function to look like this:
+
+```r
+rot <- function(front, back, a) {
+  if (is_nil(front)) cons(car(back), a)
+  else {
+    lazy_thunk <- function(lst) function() lst()
+    lazy_thunk(cons(car(front), 
+                    rot(cdr(front), cdr(back), cons(car(back), a))))
+  }
+}
+```
+
+If you then run this code
+
+```r
+q <- empty_lazy_queue()
+for (x in 1:10000) {
+  q <- enqueue(q, x)
+}
+for (i in 1:10000) {
+  q <- dequeue(q)
+}
+```
+
+you will find that you recurse too deeply.^[How deep you can recurse depends on your R setup, so you might have to increase the number of elements you run through in the loops, but with a standard configuration this should be enough to get an error.]
+
+With the analysis we have done on how deep we will recurse when we rotated, that shouldn't happen. We might get a few tens deep in function calls with a sequence of ten thousands operations, but that shouldn't be a problem at all. So what is going wrong?
+
+The problem is the lazy evaluation of the accumulator. In the recursive calls we update the accumulator to be `cons(car(back), a))`, which is something we should be able to evaluate in constant time, but we don't actually do this. Instead, we pass the *expression* for the `cons` call along in the recursive call. It doesn't actually get evaluated until we access the accumulator. At *that* time, all the `cons` calls need to be evaluated, and that can involve a *lot* of function calls; we have to call `cons` for as many times as `a` is long. By not forcing `a` we are delaying too much of the evaluation.
+
+The most common pitfall with R's lazy evaluation of parameters is the issue with changing variables. That problem might cause your functions to work incorrectly. This is a different pitfall that will give you the right answer if you get one, but might involve evaluating many more functions than you intended. You avoid it by always being careful to `force` parameters when you return a closure, but in this case we could also explicitly evaluate the `cons(car(back),a)` expression:
+
+```r
+rot <- function(front, back, a) {
+  if (is_nil(front)) cons(car(back), a)
+  else {
+    lazy_thunk <- function(lst) function() lst()
+    tail <- cons(car(back), a)
+    lazy_thunk(cons(car(front), rot(cdr(front), cdr(back), tail)))
+  }
+}
+```
+
+We are swimming in shark-infested waters when we use lazy evaluation, so we have to be careful. If we always `force` parameters when we can, though, we will avoid most problems.
 
 
 ### Constant time lazy queues

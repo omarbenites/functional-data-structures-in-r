@@ -1,4 +1,4 @@
-devtools::install_github("mailund/ralgo")
+#devtools::install_github("mailund/ralgo")
 library(ralgo)
 library(microbenchmark)
 library(tibble)
@@ -17,7 +17,7 @@ evaluate <- function(empty) function(n, x) {
 }
 
 ns <- seq(5000, 10000, by = 1000)
-performance <- rbind(get_performance("explicity environment", ns, setup, evaluate(empty_env_queue())),
+performance <- rbind(get_performance("explicit environment", ns, setup, evaluate(empty_env_queue())),
                      get_performance("closure environment", ns, setup, evaluate(empty_closure_queue())),
                      get_performance("functional queue", ns, setup, evaluate(empty_extended_queue())))
 
@@ -25,11 +25,22 @@ ggplot(performance, aes(x = as.factor(n), y = time / n, fill = algo)) +
   geom_boxplot() + 
   scale_fill_grey("Data structure") + 
   xlab(quote(n)) + ylab(expression(Time / n)) + theme_minimal()
-#ggsave("queue-comparisons.pdf", width = 12, height = 8, units = "cm")
-#ggsave("queue-comparisons.png", width = 12, height = 8, units = "cm")
+ggsave("queue-comparisons.pdf", width = 12, height = 8, units = "cm")
+ggsave("queue-comparisons.png", width = 12, height = 8, units = "cm")
 
 
 
 
-ns <- seq(50, 100, by = 10)
-get_performance("functional queue", ns, setup, evaluate(empty_extended_queue()))
+#ns <- seq(50, 100, by = 10)
+#get_performance("functional queue", ns, setup, evaluate(empty_extended_queue()))
+
+ns <- seq(5000, 10000, by = 1000)
+performance <- rbind(get_performance("explicit environment", ns, setup, evaluate(empty_env_queue())),
+                     get_performance("lazy queue", ns, setup, evaluate(empty_lazy_queue())))
+
+ggplot(performance, aes(x = as.factor(n), y = time / n, fill = algo)) +
+  geom_boxplot() + 
+  scale_fill_grey("Data structure") + 
+  xlab(quote(n)) + ylab(expression(Time / n)) + theme_minimal()
+ggsave("lazy-queue-comparisons.pdf", width = 12, height = 8, units = "cm")
+ggsave("lazy-queue-comparisons.png", width = 12, height = 8, units = "cm")
