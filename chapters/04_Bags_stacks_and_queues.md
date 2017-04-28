@@ -725,8 +725,217 @@ microbenchmark(lazy_vector()[1], times = 1)
 
 The construction of the vector is cheap because the vector expression isn't actually evaluated when we construct it. The first time we access the vector, though, and notice that we need to evaluate `lazy_vector` as a thunk to get to the expression it wraps, we will have to construct the actual vector. This is a relatively expensive operation, but the second time we access it, it is already constructed and we will have a cheap operation.
 
-We have to be a little careful with functions such as `lazy_thunk`. The `expr` parameter will be evaluated when we call the thunk the first time, but it will be evaluated in the calling scope where we constructed the thunk but as it looks when we evaluate the thunk. If it depends on variables that have been modified since we created the thunk, the expression we get might not be the one we want. The function `force` is typically used to alleviate this problem. It forces the evaluation of a parameter so it evaluates to values that matches the expression at the time the thunk is constructed. This won't work here, though---we explicitly do not want the expression evaluated.
+We have to be a little careful with functions such as `lazy_thunk`. The `expr` parameter will be evaluated when we call the thunk the first time, but it will be evaluated in the calling scope where we constructed the thunk but as it looks when we evaluate the thunk. If it depends on variables that have been modified since we created the thunk, the expression we get might not be the one we want. The function `force` is typically used to alleviate this problem. It forces the evaluation of a parameter so it evaluates to values that matches the expression at the time the thunk is constructed. This won't work here, though---we implement the thunk exactly because we do not want the expression evaluated.
 
 If we are careful with how we use thunks and make sure that we give them expressions where any variables have already been forced, though, we can exploit lazy evaluation of function parameters to implement lazy expressions.
 
 ### Lazy lists
+
+Now, let us implement lazy lists to see how we can use lazy evaluation. We are only going to use the lazy lists wrapped in a queue, so I won't construct classes with generic functions, to avoid the overhead we get there and to simplify the implementation. To avoid confusion with the function names we use with the abstract data types, I will use different names for constructing and accessing lists: I will use terminology from lisp-based languages and use `cons` for constructing lists, `car` for getting the head of a list, and `cdr` for getting the tail of a list. The names do not give much of a hint at what the functions do, but are based on [IBM 704 assembly code](https://en.wikipedia.org/wiki/CAR_and_CDR), but they are common in languages based on Lisp, so you are likely to run into them if you study functional programming, so you might as well get used to them.
+
+We will make the following invariant for lazy lists: a list is always a thunk that either returns `NULL`, when the list is empty, or a structure with a `car` and a `cdr` field. We implement construction and access to lists like this:
+
+```{r}
+nil <- function() NULL
+cons <- function(car, cdr) {
+  force(car)
+  force(cdr)
+  function() list(car = car, cdr = cdr)
+}
+
+is_nil <- function(lst) is.null(lst())
+car <- function(lst) lst()$car
+cdr <- function(lst) lst()$cdr
+```
+
+This is very similar to how we have implemented the linked lists we have used so far, except that we do not use polymorphic functions and we use `NULL` for the empty list instead of a sentinel.
+
+We can take any of the functions we have written for linked lists and make them into lazy lists by wrapping what they return in a thunk. Take, for example, list concatenation. Using the functions for lazy lists, the implementation we have would look like this:
+
+```{r}
+cat <- function(l1, l2) {
+  rev_l1 <- nil
+  while (!is_nil(l1)) {
+    rev_l1 <- cons(car(l1), rev_l1)
+    l1 <- cdr(l1)
+  }
+  result <- l2
+  while (!is_nil(rev_l1)) {
+    result <- cons(car(rev_l1), result)
+    rev_l1 <- cdr(rev_l1)
+  }
+  result
+}
+```
+
+This function simply does what the previous concatenation function did, but with lazy lists. It is not lazy itself, though, it takes linear time to execute and does the reversal right away.
+
+We can experiment with it by constructing some long lists with this helper function:
+
+```{r}
+vector_to_list <- function(v) {
+  lst <- nil
+  for (x in rev(v)) lst <- cons(x, lst)
+  lst
+}
+
+l1 <- vector_to_list(1:100000)
+l2 <- vector_to_list(1:100000)
+```
+
+We see that the concatenation operation is slow:
+
+```{r}
+microbenchmark(lst <- cat(l1, l2), times = 1)
+```
+
+The operation takes more than a second to complete. Accessing the list after we have concatenate `l1` and `l2`, however, is fast:
+
+```{r}
+microbenchmark(car(lst), times = 1)
+microbenchmark(car(lst), times = 1)
+```
+
+These operations run in microseconds, and because we are not delaying any operations we spend the same time both times we call `car` on `lst`.
+
+We can now try slightly modifying `cat` to delay its evaluation by wrapping its return value in a thunk. We need to `force` its parameters to avoid the usual problems with them referring to variables in the calling environment, but we can wrap the concatenation in a thunk after that:
+
+```{r}
+cat <- function(l1, l2) {
+  do_cat <- function(l1, l2) {
+    rev_l1 <- nil
+    while (!is_nil(l1)) {
+      rev_l1 <- cons(car(l1), rev_l1)
+      l1 <- cdr(l1)
+    }
+    result <- l2
+    while (!is_nil(rev_l1)) {
+      result <- cons(car(rev_l1), result)
+      rev_l1 <- cdr(rev_l1)
+    }
+    result
+  }
+  force(l1)
+  force(l2)
+  lazy_thunk <- function(lst) {
+    function() lst()
+  }
+  lazy_thunk(do_cat(l1, l2))
+}
+```
+
+Now, the concatenation is a fast operation
+
+```{r}
+microbenchmark(lst <- cat(l1, l2), times = 1)
+```
+
+The first time we access the list, though, we pay for the concatenation. We only pay the first time, though.
+
+```{r}
+microbenchmark(car(lst), times = 1)
+microbenchmark(car(lst), times = 1)
+```
+
+We still haven't achieved much by doing this. We have just moved the cost of concatenation from the `cat` call to the first time we access the list. If we abandon the loop-version of the concatenation function, though, and go back to the recursive version, we can get a simpler version where all operations are constant time.
+
+```{r}
+cat <- function(l1, l2) {
+  force(l1)
+  force(l2)
+  if (is_nil(l1)) l2
+  else {
+    lazy_thunk <- function(lst) function() lst()
+    lazy_thunk(cons(l1()$car, cat(l1()$cdr, l2)))
+  }
+}
+```
+
+In this function, we don't actually need to `force` `l1` since we directly use it, but just for consistency I will always `force` the arguments in functions that return thunks.
+
+We abandoned this version of the concatenation function because we would recurse too deeply on long lists, but by wrapping the recursive call in a thunk that we evaluate lazily we do not have this problem. When we evaluate the result we get from calling this `cat` we only do one step of the concatenation recursion. Now, concatenation is a relatively fast operation---it needs to set up the thunk but it doesn't do any work on the lists:
+
+```{r}
+microbenchmark(lst <- cat(l1, l2), times = 1)
+```
+
+The first time we access the concatenated lists we need to evaluate the thunk. This is fast compared to actually concatenating them and is a constant time operation:
+
+```{r}
+microbenchmark(car(lst), times = 1)
+```
+
+Subsequent access to the head of the list is even faster. Now the thunk has already been evaluated, so we just access the list structure at the head:
+
+```{r}
+microbenchmark(car(lst), times = 1)
+microbenchmark(car(lst), times = 1)
+```
+
+If we could do the same thing with list reversal, we would have a queue with constant time worst-case operations right away, but unfortunately we cannot. We could try implementing it like this:
+
+```{r}
+reverse <- function(lst) {
+  r <- function(l, t) {
+    force(l)
+    force(t)
+    if (is_nil(l)) t
+    else {
+      lazy_thunk <- function(lst) function() lst()
+      lazy_thunk(r(l()$cdr, cons(l()$car, t)))
+    }
+  }
+  r(lst, nil)
+}
+```
+
+This, however, just constructs a lot of thunks that when we evaluate the first---which we do at the end of the function---calls the entire recursion. Now, both reversing the list and accessing it will be slow operations.
+
+```{r}
+l <- vector_to_list(1:500)
+microbenchmark(lst <- reverse(l), times = 1)
+microbenchmark(car(lst), times = 1)
+```
+
+It is even worse than that. Because we are reversing the list recursively, we will recurse too deeply for R when we call the function on a long list.
+
+Wrapping the recursion in thunks might make it seem as if we are not recursing, but we are constructing thunks that, when evaluated, will call the computation all the way to the end of the list. We are really just implementing a complex version of the recursive reversal we had earlier.
+
+We could make accessing the list cheap by wrapping the reversal in a thunk, but since we cannot get the head of a reversed list without going to the end of the original list, we cannot make reversal into a constant time operation. The best we can do is to use the iterative reversal from earlier and wrap it in a thunk so we at least get the reversal call as a cheap operation.
+
+```{r}
+reverse <- function(lst) {
+  do_reverse <- function(lst) {
+    result <- nil
+    while (!is_nil(lst)) {
+      result <- cons(car(lst), result)
+      lst <- cdr(lst)
+    }
+    result
+  }
+  force(lst)
+  lazy_thunk <- function(lst) {
+    function() lst()
+  }
+  lazy_thunk(do_reverse(lst))
+}
+```
+
+With this implementation, setting up the reversal is cheap, the first time we access the list we pay for it, but subsequent access is cheap again.
+
+```{r}
+l <- vector_to_list(1:10000)
+microbenchmark(lst <- reverse(l), times = 1)
+microbenchmark(car(lst), times = 1)
+microbenchmark(car(lst), times = 1)
+```
+
+Since reversing the back list of a queue is the expensive operation, and since we cannot get away from that with lazy lists, it seems like we are not getting far, but we did gain a little. Now, at least, we only pay for a reversal once, so we can access a queue that has just reversed its back list and only pay for the operation the first time. If we use the queue persistently, we can access the same queue cheaper in any following operations. Of course, nothing prevents us them from going back to the queue in the state it was just *before* we called the reversal and start from there, and then we are back to potentially calling expensive operations more than once.
+
+To do slightly better, we will need to construct lists that contain partly reversed and partly correctly-ordered lists as we update the queue.
+
+### Amortised lazy queues
+
+
+
+### Constant time lazy queues
