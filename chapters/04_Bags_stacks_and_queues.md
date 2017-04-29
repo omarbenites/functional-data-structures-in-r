@@ -1007,6 +1007,135 @@ dequeue.lazy_queue <- function(x)
 
 When we enqueue an element, we add it to the back list, when we need the front element, we get it from the front list---which can't be empty unless the entire queue is empty---and when we dequeue an element we just shorten the front list. All this is wrapped in calls to `make_q` that calls `rot` when needed.
 
+
+We can see how the queue works in action by going through a few operations and see what the lists look like after each. We start with making an empty queue. It will have two empty lists.
+
+```
+q <- empty_lazy_queue()
+
+Front: nil
+Back: nil
+```
+
+If we now add an element, we will prepend it to the back list and then call `make_q` that will call `rot` because the back list is longer than the front list. In `rot` we see that the front list is empty so we have the base case where we just return the singleton list containing the element in the back list.
+
+```
+q < enqueue(q, 1)
+
+Front: cons(1, nil)
+Back: nil
+```
+
+If we add a second element, we will see in `make_q` that the back and front lists have the same length, so we just prepend the element to the back list.
+
+```
+q < enqueue(q, 2)
+
+Front: cons(1, nil)
+Back: cons(2, nil)
+```
+
+Inserting the third element, we get the first real rotation. We prepend 3 to the back list so it now contains the sequence (3,2) while the front list contains (1), and we then construct a list with the head 1 and the tail the rotation of `nil`, 2 and 3, but wrap that in a thunk.
+
+```
+q < enqueue(q, 3)
+
+Front: lazy_thunk(
+	cons(1, rot(nil, cons(2, nil), cons(3, nil)))
+)
+Back: nil
+```
+
+If we get the `front` of the queue or if we `dequeue` it, we will evaluate the thunk, which forces the evaluation of the rotation. Since the rotation is on an empty front list, it doesn't produce a new recursive rotation but directly produces a `cons` call.
+
+```
+q < front(q)
+
+Front: lazy_thunk(
+	cons(1, cons(2, cons(3, nil)))
+)
+Back: nil
+```
+
+At this point the entire back list has been reversed and appended to the front queue, and from here on we can just dequeue the elements. The first dequeueing gets rid of the thunk as well as the first element
+
+```
+q < dequeue(q)
+
+Front: cons(2, cons(3, nil))
+Back: nil
+```
+
+Other `dequeue` operations are now straightforward.
+
+Let us go back to the empty list and insert six elements.
+
+```
+q <- empty_lazy_queue()
+for (x in 1:6)
+  q <- enqueue(q, x)
+
+Front: lazy_thunk(
+	cons(1, rot(nil, cons(2, nil), cons(3, nil)))
+)
+Back: cons(6, cons(5, cons(4, nil)))
+```
+
+Now, the front and back lists have the same length, so at the next `enqueue` operation we will have to insert a rotation. This will force an evaluation of the thunk that is the front list, forcing in turn an evaluation of the `rot` function as we saw before, and then it will construct a new thunk wrapping this.
+
+```
+q <- enqueue(q, 7)
+
+Front: lazy_thunk(
+	cons(1, rot(cons(2, cons(3, nil)),
+	            cons(6, cons(5, cons(4, nil))),
+	            cons(7, nil)))
+)
+Back: nil
+```
+
+Accessing the front of the queue will trigger an evaluation of the thunk, calling one level of recursion on `rot`.
+
+```
+front(q)
+
+Front: lazy_thunk(
+	cons(1, cons(2, rot(cons(3, nil)),
+	                    cons(5, cons(4, nil)),
+	                    cons(6, cons(7, nil))))
+)
+Back: nil
+```
+
+Dequeueing doesn't add another rotation since it wrapped in a thunk---although that is no so clear from my notation here, there is a thunk wrapping the `rot` call at the second level.
+
+```
+q <- dequeue(q)
+
+Front: lazy_thunk(
+	cons(2, rot(cons(3, nil)),
+	            cons(5, cons(4, nil)),
+	            cons(6, cons(7, nil)))
+)
+Back: nil
+```
+
+Calling `front` on this queue will again force an evaluation of `rot`
+
+```
+front(q)
+
+Front: lazy_thunk(
+	cons(2, cons(3, rot(nil,
+	                    cons(4, nil),
+	                    cons(5, cons(6, cons(7, nil))))
+)
+Back: nil
+```
+
+You can continue the example, and I advice you to if you really want to understand how we simulate a data structure by modifying lazy expressions.
+
+
 For the amortised complexity analysis we can reason as before: whenever we add an element to the back queue it also pays for moving the element to the front queue at a later time. So any sequence of operations will be bounded by the number of constant-time insertions, just as before. Because the lazy evaluation mechanism we have implemented remembers the result of evaluating an expression, we also get the same complexity if we use the queue persistently. If we need to perform expensive operations, which we will need when we remove elements from the front of the queue, this might be costly the *first* time we remove an element from a given queue, but if we remove it again, because we do operations on a saved queue after we have modified it somewhere else, then the operation will be cheap.
 
 For the worst-case complexity analysis, we first notice that enqueue operations always take constant time. We first add an element to the front of the back list, which is a constant time operation, and after that we might call `rot`. Calling `rot` only constructs a thunk, however, which again is a constant time operation. We don't pay for rotations until we access the list a `rot` call wraps.
@@ -1143,3 +1272,151 @@ front.lazy_queue <- function(x) car(x$front)
 dequeue.lazy_queue <- function(x)
   make_q(cdr(x$front), x$back, x$helper)
 ```
+
+
+
+You should think of `helper` more as a pointer into the front list than a separate list itself. Its purpose is to walk through the elements in the front list and evaluate them, leaving just a list behind. The lazy lists we are working with are conceptually immutable, but because of lazy evaluation, some consist of simple `cons` calls and others of `rot` calls. As we progress through the `helper` function, we translate the recursive `rot` calls into `cons` calls---conceptually, at least; the actual list still consists of the `rot` call but the value in the function has been evaluated. Since `helper` refers to a suffix of the `front` list at any time in the evaluation of queue operations, the effect of evaluating expressions in `helper` makes operations on `front` cheap.
+
+Whenever we construct a queue with `make_q` we either set up a new rotation of the front and back queue or we evaluate the first function in the `helper` list. We can see this in action through an example. We start with an empty list and insert an element. This involves a call to `rot` as in the earlier version of the lazy queue but this time we also set the helper list to point to the front list.
+
+```
+q <- empty_lazy_queue()
+q <- enqueue(q, 1)
+
+Front: cons(1, nil)
+Helper: cons(1, nil)
+Back: nil
+```
+
+When we insert a second element this gets prepended to the back list and we make one step with the helper function, moving it to the empty list.
+
+```
+q <- enqueue(q, 2)
+
+Front: cons(1, nil)
+Helper: nil
+Back: cons(2, nil)
+```
+
+With the third element, we again need a rotate call, since now the helper list is empty.
+
+```
+q <- enqueue(q, 3)
+
+Front: cons(1, rot(nil, cons(2, nil), cons(3, nil)))
+Helper: cons(1, rot(nil, cons(2, nil), cons(3, nil)))
+Back: nil
+```
+
+If we now continue inserting elements into the queue we can see how the helper function will walk through the front queue and evaluate the expressions there, updating the front queue at the same time, as we insert new elements to the back queue.
+
+```
+q <- enqueue(q, 4)
+
+Front: cons(1, cons(2, cons(3, nil)))
+Helper: cons(2, cons(3, nil))
+Back: cons(4, nil)
+```
+
+```
+q <- enqueue(q, 5)
+
+Front: cons(1, cons(2, cons(3, nil)))
+Helper: cons(3, nil)
+Back: cons(5, cons(4, nil))
+```
+
+```
+q <- enqueue(q, 6)
+
+Front: cons(1, cons(2, cons(3, nil)))
+Helper: nil
+Back: cons(6, cons(5, cons(4, nil)))
+```
+
+When we insert the seventh element, we again need a rotation, but now all the lazy expressions in the front queue have been evaluated. 
+
+```
+q <- enqueue(q, 7)
+
+Front: cons(1, rot(cons(2, cons(3, nil)),
+                   cons(6, cons(5, cons(4, nil))),
+                   cons(7, nil)))
+Helper: cons(1, rot(cons(2, cons(3, nil)),
+                    cons(6, cons(5, cons(4, nil))),
+                    cons(7, nil)))
+Back: nil
+```
+
+In future operations, `helper` will walk through the front queue again and evaluate tails of the function.
+
+```
+q <- enqueue(q, 8)
+
+Front: cons(1, cons(2, rot(cons(3, nil),
+                           cons(5, cons(4, nil)),
+                           cons(6, cons(7, nil)))))
+Helper: cons(2, rot(cons(3, nil),
+                    cons(5, cons(4, nil)),
+                    cons(6, cons(7, nil))))
+Back: cons(8, nil)
+```
+
+```
+q <- enqueue(q, 9)
+
+Front: cons(1, cons(2, cons(3, 
+          rot(nil,
+              cons(4, nil), 
+              cons(5, cons(6, cons(7, nil)))))))
+Helper: cons(3, rot(nil,
+                    cons(4, nil),
+                    cons(5, cons(6, cons(7, nil)))))
+Back: cons(9, cons(8, nil))
+```
+
+```
+q <- enqueue(q, 10)
+
+Front: cons(1, cons(2, cons(3, 
+          cons(4, cons(5, cons(6, cons(7, nil)))))))
+Helper: cons(4, cons(5, cons(6, cons(7, nil))))
+Back: cons(10, cons(9, cons(8, nil)))
+```
+
+We don't just progress the evaluation of the helper function when we add elements, we also move it forward when removing elements.
+
+```
+q <- dequeue(q)
+
+Front: cons(2, cons(3, 
+          cons(4, cons(5, cons(6, cons(7, nil))))))
+Helper: cons(5, cons(6, cons(7, nil)))
+Back: cons(10, cons(9, cons(8, nil)))
+```
+
+```
+q <- dequeue(q)
+
+Front: cons(3, cons(4, cons(5, cons(6, cons(7, nil)))))
+Helper: cons(6, cons(7, nil))
+Back: cons(10, cons(9, cons(8, nil)))
+```
+
+```
+q <- dequeue(q)
+
+Front: cons(4, cons(5, cons(6, cons(7, nil))))
+Helper: cons(7, nil)
+Back: cons(10, cons(9, cons(8, nil)))
+```
+
+```
+q <- enqueue(q, 11)
+
+Front: cons(4, cons(5, cons(6, cons(7, nil))))
+Helper: nil
+Back: cons(11, cons(10, cons(9, cons(8, nil))))
+```
+
+We do not insert the next rotation until the helper list is empty, at which point the entire front list has been lazy evaluated. It exactly because of this, that the helper function goes through the front list and performs rotations one element in the list at a time, that the worst-case performance is constant time.

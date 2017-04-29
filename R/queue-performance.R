@@ -42,5 +42,11 @@ ggplot(performance, aes(x = as.factor(n), y = time / n, fill = algo)) +
   geom_boxplot() + 
   scale_fill_grey("Data structure") + 
   xlab(quote(n)) + ylab(expression(Time / n)) + theme_minimal()
-ggsave("lazy-queue-comparisons.pdf", width = 12, height = 8, units = "cm")
-ggsave("lazy-queue-comparisons.png", width = 12, height = 8, units = "cm")
+ggsave("lazy-worstcase-queue-comparisons.pdf", width = 12, height = 8, units = "cm")
+ggsave("lazy-worstcase-queue-comparisons.png", width = 12, height = 8, units = "cm")
+
+
+
+
+
+
