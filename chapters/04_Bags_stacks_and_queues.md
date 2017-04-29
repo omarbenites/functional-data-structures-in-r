@@ -798,7 +798,7 @@ microbenchmark(car(lst), times = 1)
 
 These operations run in microseconds, and because we are not delaying any operations we spend the same time both times we call `car` on `lst`.
 
-We can now try slightly modifying `cat` to delay its evaluation by wrapping its return value in a thunk. We need to `force` its parameters to avoid the usual problems with them referring to variables in the calling environment, but we can wrap the concatenation in a thunk after that:
+We can now try slightly modifying `cat` to delay its evaluation by wrapping its return value in a thunk. We need to `force` its parameters to avoid the usual problems with them referring to variables in the calling environment, but we can wrap the concatenation in a thunk after that:^[I will use an explicit function, `lazy_thunk`, to wrap operations in this chapter. You could equally well just return an anonymous function, but you would have to remember to evaluate the body as a function to make it behave as a list. So, instead of returning `lazy_thunk(do_cat(l1,l2))` in the `cat` function we could return `function() do_cat(l1,l2)()`.]
 
 ```{r}
 cat <- function(l1, l2) {
@@ -817,9 +817,7 @@ cat <- function(l1, l2) {
   }
   force(l1)
   force(l2)
-  lazy_thunk <- function(lst) {
-    function() lst()
-  }
+  lazy_thunk <- function(lst) function() lst()
   lazy_thunk(do_cat(l1, l2))
 }
 ```
@@ -1073,7 +1071,7 @@ for (i in 1:10000) {
 }
 ```
 
-you will find that you recurse too deeply.^[How deep you can recurse depends on your R setup, so you might have to increase the number of elements you run through in the loops, but with a standard configuration this should be enough to get an error.]
+you will find that you call functions too deeply.^[How deep you can recurse depends on your R setup, so you might have to increase the number of elements you run through in the loops, but with a standard configuration this should be enough to get an error.]
 
 With the analysis we have done on how deep we will recurse when we rotated, that shouldn't happen. We might get a few tens deep in function calls with a sequence of ten thousands operations, but that shouldn't be a problem at all. So what is going wrong?
 
@@ -1096,3 +1094,6 @@ We are swimming in shark-infested waters when we use lazy evaluation, so we have
 
 
 ### Constant time lazy queues
+
+The rotation function performs a little of the reversal as part of constant time insertion operations, which is why we get a worst-case performance better than linear time. With making do just a little more, we can get constant time worst-case behaviour.
+

@@ -23,11 +23,11 @@ cat <- function(l1, l2) {
 
 
 rot <- function(front, back, a) {
+  force(a)
   if (is_nil(front)) cons(car(back), a)
   else {
     lazy_thunk <- function(lst) function() lst()
-    tail <- cons(car(back), a)
-    lazy_thunk(cons(car(front), rot(cdr(front), cdr(back), tail)))
+    lazy_thunk(cons(car(front), rot(cdr(front), cdr(back), cons(car(back), a))))
   }
 }
 
