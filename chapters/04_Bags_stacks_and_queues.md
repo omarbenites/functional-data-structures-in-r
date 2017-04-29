@@ -1095,5 +1095,51 @@ We are swimming in shark-infested waters when we use lazy evaluation, so we have
 
 ### Constant time lazy queues
 
-The rotation function performs a little of the reversal as part of constant time insertion operations, which is why we get a worst-case performance better than linear time. With making do just a little more, we can get constant time worst-case behaviour.
+The rotation function performs a little of the reversal as part of constant time insertion operations, which is why we get a worst-case performance better than linear time. With making do just a little more, we can get constant time worst-case behaviour. There will still be a slight overhead with this version compared to the ephemeral queue implementation, see [@fig:lazy-worstcase-queue-comparisons], so if you don't need your queues to be persistent or fast for *ever* operation, the first solution we had is still superior. If you *do* need to use the queue as a persistent structure or you need guaranteed constant time operations, then this new variation is the way to go.
 
+![Comparison of the ephemeral queue and the worst-case constant time lazy queue.](figures/lazy-worstcase-queue-comparisons){#fig:lazy-worstcase-queue-comparisons}
+
+The worst-case constant time lazy queue uses the same rotation function as the 
+#ifdef EPUB
+log(n)
+#else
+$\\log(n)$
+#endif
+worst-case queue, but it uses a helper list that is responsible for evaluating part of the front queue as part of other queue operations. With the rotation function, we handle the combination of concatenation and reversal to move elements from the back list to the front list as part of other operations. We will use the helper list to evaluate the thunks that the front list consist of as part of other operations. If we evaluate them as part of other operations, then, when we need to access the front list, the lazy expressions have been evaluated and we can access the list in constant time.
+
+Instead of keeping track of the length of the lists in the `lazy_queue` data structure, we just keep the extra helper list. We do not need to know the length of the lists in this implementation; we only need checks for empty lists.
+
+```r
+lazy_queue <- function(front, back, helper) {
+  structure(list(front = front, back = back, helper = helper),
+            class = "lazy_queue")
+}
+```
+
+We then modify the `make_q` function to this:
+
+```r
+make_q <- function(front, back, helper) {
+  if (is_nil(helper)) {
+    helper <- rot(front, back, nil)
+    lazy_queue(helper, nil, helper)
+  } else {
+    lazy_queue(front, back, cdr(helper))
+  }
+}
+```
+
+and we update the constructor and generic functions to reflect the changed data structure:
+
+```r
+empty_lazy_queue <- function() 
+  lazy_queue(nil, nil, nil)
+is_empty.lazy_queue <- function(x)
+  is_nil(x$front) && is_nil(x$back)
+
+enqueue.lazy_queue <- function(x, elm)
+  make_q(x$front, cons(elm, x$back), x$helper)
+front.lazy_queue <- function(x) car(x$front)
+dequeue.lazy_queue <- function(x)
+  make_q(cdr(x$front), x$back, x$helper)
+```
