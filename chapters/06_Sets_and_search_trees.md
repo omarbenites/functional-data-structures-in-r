@@ -1,1 +1,1 @@
-# Sets and search trees {#sec:sets-and-search-trees}
+# Sets, maps, and search trees {#sec:sets-and-search-trees}

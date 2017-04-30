@@ -10,7 +10,7 @@ R doesn't have a large library of data structures to choose from. Again, this is
 
 This book does not provide an exhaustive list of functional data structures. There are many different variations of data structures, many of which can be translated into persistent/functional versions. I hope to see more of them in R packages in the future, and I hope this book has motivated you to try implementing some of them. If you do, I would love to hear about it.
 
-This is the end of the book. I hope it has been useful in learning object-oriented programming as understood by the R programming language. If you liked this book, why not check out my [list of other books](http://wp.me/P9B2l-DN) or 
+This is the end of the book. I hope it has been useful in learning how to construct data structures in the R programming language. If you liked this book, why not check out my [list of other books](http://wp.me/P9B2l-DN) or 
 [sign up to my mailing list](http://eepurl.com/cwIbR5)?
 
 ## Acknowledgements
