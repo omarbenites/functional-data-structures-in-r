@@ -1420,3 +1420,5 @@ Back: cons(11, cons(10, cons(9, cons(8, nil))))
 ```
 
 We do not insert the next rotation until the helper list is empty, at which point the entire front list has been lazy evaluated. It exactly because of this, that the helper function goes through the front list and performs rotations one element in the list at a time, that the worst-case performance is constant time.
+
+With a little more work, it is possible to to adapt this strategy to double-ended queues as well. For that construction, I refer to @okasaki_1995.

@@ -80,7 +80,10 @@ q <- enqueue(q, 5)
 q <- enqueue(q, 6)
 
 eval(substitute(substitute(x,environment(q$front)),list(x=body(q$front))))
+eval(substitute(substitute(x,environment(q$helper)),list(x=body(q$helper))))
 eval(substitute(substitute(x,environment(q$back)),list(x=body(q$back))))
+as.list(environment(q$front))
+as.list(environment(q$helper))
 
 q <- enqueue(q, 7)
 front(q)
