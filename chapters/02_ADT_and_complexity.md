@@ -268,7 +268,7 @@ As for point number two for why we want to experiment with algorithms, it is ver
 
 In this book, I will use the `microbenchmark` package to run performance experiments. This package lets me run a number of executions of the same operation and get the time it takes back in nanoseconds. I don't need that fine a resolution, but it is nice to be able to get a list of time measurements. I collect the results in a `tibble` data frame from which I can summarise the results and plot them later. The code I use for my experiments is listed below:
 
-```r
+```{r, eval=FALSE}
 library(tibble)
 library(microbenchmark)
 
@@ -310,7 +310,7 @@ $n$
 #endif
 with the two set implementations we have seen, I can use the `setup` function to choose the implementation---based on their respective empty structures---and I can construct the sets in the `evaluate` function:
 
-```r
+```{r, eval=FALSE}
 setup <- function(empty) function(n) empty
 evaluate <- function(n, empty) {
   set <- empty
@@ -354,7 +354,7 @@ In [@fig:set-comparison-div-n] we see the time divided by the size of the set an
 
 If we modify the `setup` and `evaluate` functions slightly we can also measure the time usage for membership queries. Here, we would construct a set in the `setup` function and then look up a random member in the `evaluate` function:
 
-```r
+```{r, eval=FALSE}
 setup <- function(empty) function(n) {
   set <- empty
   elements <- sample(1:n)

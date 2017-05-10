@@ -2,7 +2,7 @@
 
 What prevents us from implementing traditional imperative-language data structures in R is the immutability of data. As a general rule, you can modify environments---so you can assign to variables---but you cannot modify actual data. Whenever R makes it look like you are modifying data, it is lying. When you assign to an element in a vector
 
-```r
+```{r, eval=FALSE}
 x[i] <- v
 ```
 
@@ -18,7 +18,7 @@ Since we cannot modify data, we might as well make a virtue out of necessity. Wh
 
 To see what I mean by data structures being persistent in R, we look at the simple linked list again. I've defined it below, using slightly shorter names than earlier now that we don't need to remind ourselves that it is a linked list, and I'm using the sentinel trick to create the "empty" list.
 
-```r
+```{r, eval=FALSE}
 is_empty <- function(x) UseMethod("is_empty")
 
 list_cons <- function(elem, lst)
@@ -34,7 +34,7 @@ list_tail <- function(lst) lst$tail
 
 With these definitions, we can create three lists like this:
 
-```r
+```{r, eval=FALSE}
 x <- list_cons(2, list_cond(1, empty_list()))
 y <- list_cons(3, x)
 z <- list_cons(4, empty_list())
@@ -50,7 +50,7 @@ When we implemented a set through linked lists we saw how to add and search in a
 
 When writing a function that operates on persistent data, I always find it easiest to think in terms of recursion. It might not be immediately obvious how to reverse a list as a recursive function, though. If we recurse all the way down to the end of the list, we get hold of the first element we should have in the reversed list, but how do we then fit that into the list we construct going up in the recursion again? There is no simple way to do this. We can, however, use the trick of bring an accumulator with is in the recursive calls and construct the reversed list in this. If you are not familiar with accumulators in recursive functions, I cover it in some detail in my book on functional programming in R [@mailund2017functional], but you can probably follow the idea in the code below. The idea is that the variable `acc` contains the reversed list we have constructed so far. When we get to the end of the recursion, we have the entire reversed list in `acc` so we can just return it. Otherwise, we can recurse on the remaining list but put the head element at the top of the accumulator. With a recursive helper function, the list reversal can look like this:
 
-```r
+```{r, eval=FALSE}
 list_reverse_helper <- function(lst, acc) {
   if (is_empty(lst)) acc
   else list_reverse_helper(list_tail(lst),
@@ -68,7 +68,7 @@ I have shown the iterations for reversing a list of length three in [@fig:list-r
 
 In a pure functional programming language, this would probably be the best approach to reversing a list. The function uses tail recursion (again, you can read about that in my other book [@mailund2017functional]), so it is essentially a loop we have written. Unfortunately, R does *not* implement tail recursion, so we have a potential problem. If we have a very long list, we can run out of stack space before we finish reversing it. We can, however, almost automatically translate tail recursive functions into loops, and a loop version for reversing a list would then look like this:
 
-```r
+```{r, eval=FALSE}
 list_reverse_loop <- function(lst) {
   acc <- empty_list()
   while (!is_empty(lst)) {
@@ -88,7 +88,7 @@ Another thing we might want to do with lists is concatenate two of them. With mu
 
 Again, it is easiest to construct the function recursively. Here, the base case is when the first list is empty. Then, the concatenation of the two lists is just the second list. Otherwise, we have to put the head of the first list in front of  the concatenation of the tail of the first list and the entire second list. As an R function, we can implement that idea like this:
 
-```r
+```{r, eval=FALSE}
 list_concatenate <- function(l1, l2) {
   if (is_empty(l1)) l2
   else list_cons(list_head(l1), 
@@ -102,7 +102,7 @@ The new list we construct contain `l2` as the last part of it. We do not need to
 
 It is a little harder to implement concatenation without recursion. We construct the new list as we return from the recursive calls, so if we want to implement this iteratively, we need to emulate the call stack. We can do this, however, following the way we implemented list reversal: we can construct a reversal of the first list moving down the list and once we read the end of the first list we can construct the result of the concatenation by putting head elements in front of the new list. We can implement a looping version this way:
 
-```r
+```{r, eval=FALSE}
 list_concatenate_loop <- function(l1, l2) {
   rev_l1 <- empty_list()
   while (!is_empty(l1)) {
@@ -125,7 +125,7 @@ The loop version has to first construct the reversed of the first list and then 
 
 What about removing elements from a list, then? Again, we cannot modify lists, so removing means constructing a new list, and once again, the easiest approach to solving the problem is to write a recursive function. The base case is removing an element from an empty list. That is easily done, because we can just return the empty list. Otherwise, we have two cases---assuming we only want to remove the first occurrence of an element, as I will assume there. Either the head of the list is equal to the element we want to remove, in which case we just return the tail of the list, otherwise we need to concatenate the current head to a recursive call to remove the element from the tail of the list. The solution could look like this:
 
-```r
+```{r, eval=FALSE}
 list_remove <- function(lst, elm) {
   if (is_empty(lst)) lst
   else if (list_head(lst) == elm) list_tail(lst)
@@ -172,7 +172,7 @@ The tree we construct in this chapter will not necessarily be balanced. We imple
 
 Anyway, we construct our tree out of nodes that contain a value and a reference to the left and to the right subtrees. As usual, we create a sentinel object to represent an empty tree. So our tree implementation could look like this:
 
-```r
+```{r, eval=FALSE}
 search_tree_node <- function(
   value
   , left = empty_search_tree()
@@ -190,7 +190,7 @@ is_empty.unbalanced_search_tree <- function(x)
 
 We want three generic functions for working with sets in general, so we define functions for inserting and removing elements in a set and a function for testing membership in a set. All three will be implemented for our search tree with complexity proportional to the depth of the tree.
 
-```r
+```{r, eval=FALSE}
 insert <- function(x, elm) UseMethod("insert")
 remove <- function(x, elm) UseMethod("remove")
 member <- function(x, elm) UseMethod("member")
@@ -198,7 +198,7 @@ member <- function(x, elm) UseMethod("member")
 
 Of these three functions, the `member` function is the simplest to implement for a search tree. The invariant for search trees tells us that if we have a node and the element we are looking for is smaller than the value there, then the element must be found in the left search tree if it exists; otherwise, it must be found in the right search tree. This leads naturally to a recursive function. The base case is when we search in an empty tree: there we will always answer that the element isn't found there. Otherwise, we essentially have to check three possibilities: We might have found the node where the element is, or we have to search to the left, or we have to search to the right. We can implement that function thus:
 
-```r
+```{r, eval=FALSE}
 member.unbalanced_search_tree <- function(x, elm) {
   if (is_empty(x)) return(FALSE)
   if (x$value == elm) return(TRUE)
@@ -209,7 +209,7 @@ member.unbalanced_search_tree <- function(x, elm) {
 
 In this solution, we do to comparisons in each recursive call if we are not at an empty tree: we compare for equality with the element we are looking for and we check if it is less than the value in the node. We can actually delay one of the comparisons and halve the number of comparisons. We just have to remember the last element that *could* be the element we are looking for. We then can call recursively to the left or right after just checking if the element in the node is larger than the element we are searching for. If we get all the way down to an empty tree, we check if the element is the one we could have checked equality on earlier. That solution looks like this:
 
-```r
+```{r, eval=FALSE}
 st_member <- function(x, elm, candidate = NA) {
   if (is_empty(x)) return(!is.na(candidate) && elm == candidate)
   if (elm < x$value) st_member(x$left, elm, candidate)
@@ -232,7 +232,7 @@ since that is the expected depth of a random tree, and I ran the experiments on 
 
 To insert an element in a search tree we have to, as always, construct a new structure that represent the updated tree. We can do this by searching recursively down the tree to the position where we should insert the element---going left if we are inserting an element smaller than the value in a node and going right if we are inserting a larger value---and then constructing the new tree going up the recursion. A recursive solution will work like this: if we reach an empty tree, we have found the place where we should insert the element, so we construct a new leaf and return that from the recursion. Otherwise, we check the value in the inner node. If the value is larger than the element we are inserting, we need to construct the new tree consisting of the current value, the existing right tree, and a version of the left tree where we have inserted the element. If the element in the node is smaller than the element we are inserting, we do the symmetric constructing where we insert the element in the right tree. Of course, if the element is equal to the value in the node, it is already in the tree so we can just return the existing tree. In R code, this solutions could look like this:
 
-```r
+```{r, eval=FALSE}
 insert.unbalanced_search_tree <- function(x, elm) {
   if (is_empty(x)) return(search_tree_node(elm))
   if (elm < x$value)
@@ -274,7 +274,7 @@ The trick is to get hold of the leftmost node in the right subtree. This node co
 
 We need a helper function for finding the leftmost node in a subtree, but after that, we just have to handle different cases when we delete an element. If it isn't in the tree, we eventually hit an empty tree in the search and we just return that. Otherwise, if we find the element, we handle the cases where it has at most one child directly and do the leftmost trick otherwise. The remaining cases are just handling when we are still searching down in the recursion: we need to create a node that contains the original left or right subtree---depending on the value in the node---and use the result of removing the element in the other subtree. The full implementation can look like this:
 
-```r
+```{r, eval=FALSE}
 st_leftmost <- function(x) {
   while (!is_empty(x)) {
     value <- x$value

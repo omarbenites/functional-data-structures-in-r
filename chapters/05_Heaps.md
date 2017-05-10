@@ -2,14 +2,14 @@
 
 Heaps, or priority queues, are collections of elements from an ordered set where, besides checking for emptiness and inserting elements
 
-```r
+```{r, eval=FALSE}
 is_empty <- function(x) UseMethod("is_empty")
 insert <- function(x, elm) UseMethod("insert")
 ```
 
 we can also access and delete the smallest element.^[I will implement all the heaps in this chapter to have access to the minimal element. It is a trivial modification to have access to the largest instead.]
 
-```r
+```{r, eval=FALSE}
 find_minimal <- function(heap) UseMethod("find_minimal")
 delete_minimal <- function(heap) UseMethod("delete_minimal")
 ```
@@ -18,13 +18,13 @@ Heaps are not necessarily sets. It is possible for heaps to have multiple elemen
 
 In addition to these operations, we will also require that we can merge two heaps.
 
-```r
+```{r, eval=FALSE}
 merge <- function(x, y) UseMethod("merge")
 ```
 
 In many of the implementations, we have use for this merge function, and we can always implement a default version like this:
 
-```r
+```{r, eval=FALSE}
 merge.default <- function(x, y) {
   while (!is_empty(y)) {
     x <- insert(x, find_minimal(y))
@@ -36,7 +36,7 @@ merge.default <- function(x, y) {
 
 Since we already used `merge` with bags, though, we probably shouldn't make this default implementation of the generic function. Instead, we can make a version for heaps
 
-```r
+```{r, eval=FALSE}
 merge.heap <- function(x, y) {
   while (!is_empty(y)) {
     x <- insert(x, find_minimal(y))
@@ -52,7 +52,7 @@ This heap merging will work for all heaps, but usually there are more efficient 
 
 One use of heaps is sorting elements. This approach is known as heap sort. If we have a heap, we can construct a list from its element in reverse order using a loop similar to the `merge.default` function:
 
-```r
+```{r, eval=FALSE}
 heap_to_list <- function(x) {
   l <- empty_list()
   while (!is_empty(x)) {
@@ -65,7 +65,7 @@ heap_to_list <- function(x) {
 
 This function creates a linked list from a heap, but the elements are added in decreasing rather than increasing order, so to implement a full sort we need to reverse it. Of course, to sort a vector of elements, we also need to construct the heap from the elements. One general approach is, of course, to just insert all the elements into a heap, starting from the empty heap.
 
-```r
+```{r, eval=FALSE}
 vector_to_heap <- function(empty_heap, vec) {
   heap <- empty_heap
   for (e in vec)
@@ -76,7 +76,7 @@ vector_to_heap <- function(empty_heap, vec) {
 
 With the `vector_to_heap` and `heap_to_list` functions, we can sort elements thus:  
 
-```r
+```{r, eval=FALSE}
 heap_sort <- function(vec, empty_heap) {
   heap <- vector_to_heap(empty_heap, vec)
   lst <- heap_to_list(heap)
@@ -112,7 +112,7 @@ $O(n\\log(n))$
 #endif
 time to extract the elements again. Constructing heaps in linear time uses the `merge` function. Instead of adding one element at a time, we construct a sequence of heaps and merge them. The construction looks like this:
 
-```r
+```{r, eval=FALSE}
 singleton_heap <- function(empty_heap, e) insert(empty_heap, e)
 vector_to_heap <- function(vec, empty_heap, empty_queue) {
   q <- empty_queue
@@ -150,7 +150,7 @@ is convergent, is $O(n)$. So, if we can merge heaps in logarithmic time, we can 
 
 With this implementation of heap construction, we would have to modify the `heap_sort` function to look like this:
 
-```r
+```{r, eval=FALSE}
 heap_sort <- function(vec, empty_heap, empty_queue) {
   heap <- vector_to_heap(vec, empty_heap, empty_queue)
   lst <- heap_to_list(heap)
@@ -172,7 +172,7 @@ Leftist heaps are a classical implementation of heaps based on one simple idea: 
 
 To keep the invariant that the left sub-tree is always at least as large as the right sub-tree, we keep track of tree sizes. We call this the *rank* of the tree. The structure we use to represent a leftist heap looks like this:
 
-```r
+```{r, eval=FALSE}
 leftist_heap_node <- function(
   value
   , left = empty_leftist_heap()
@@ -191,7 +191,7 @@ The class of the structure is `"leftist_heap"` and then `"heap"`, so the `vector
 
 The empty list and the emptiness test uses the sentinel trick as we have used it earlier.
 
-```r
+```{r, eval=FALSE}
 empty_leftist_heap_node <- leftist_heap_node(NA, NULL, NULL)
 empty_leftist_heap <- function() empty_leftist_heap_node
 is_empty.leftist_heap <- function(x)
@@ -200,7 +200,7 @@ is_empty.leftist_heap <- function(x)
 
 Since a leftist heap has the heap property, we can always get the the minimal value from the root of the tree:
 
-```r
+```{r, eval=FALSE}
 find_minimal.leftist_heap <- function(heap) {
   heap$value
 }
@@ -208,7 +208,7 @@ find_minimal.leftist_heap <- function(heap) {
 
 To delete the minimal value, we need to get rid of the value in the root. But since the two sub-trees of the root are heaps, we can create a new heap with the minimal value removed just by merging the two sub-trees.
 
-```r
+```{r, eval=FALSE}
 delete_minimal.leftist_heap <- function(heap) {
   merge(heap$left, heap$right)
 }
@@ -216,7 +216,7 @@ delete_minimal.leftist_heap <- function(heap) {
 
 Inserting an element is equally simple: we can make a singleton heap and merge it into the existing heap.
 
-```r
+```{r, eval=FALSE}
 insert.leftist_heap <- function(x, elm) {
   merge(x, leftist_heap_node(elm))
 }
@@ -224,7 +224,7 @@ insert.leftist_heap <- function(x, elm) {
 
 All the complexity of a leftist heap boils down to the `merge` operation. This is where we will exploit that the right sub-tree is never more than half the heap. If we merge two heaps, we take the minimal value in the root and put the left part of the first tree as the left sub-tree and then merge recursively on the right. Since this cuts the problem down to half the size, we will never spend more time than $O(\\log n)$.
 
-```r
+```{r, eval=FALSE}
 build_leftist_heap <- function(value, a, b) {
   if (a$rank >= b$rank)
     leftist_heap_node(value = value, 
@@ -257,6 +257,162 @@ I hope you agree that this implementation of a heap is very simple. There is onl
 But just because we have one solution to the heap data structure there is no reason to stop. It is worth exploring other solutions. Even if they are less efficient, which they might be if they are more complex to implement, there might be some insights to gain from implementing them...
 
 ## Binomial heaps
+
+```{r, eval=FALSE}
+binomial_tree_node <- function(value, trees) {
+  list(value = value, trees = trees)
+}
+
+link_binomial_trees <- function(t1, t2) {
+  if (t1$value < t2$value) {
+    binomial_tree_node(t1$value, list_cons(t2, t1$trees))
+  } else {
+    binomial_tree_node(t2$value, list_cons(t1, t2$trees))
+  }
+}
+
+binomial_heap_node <- function(rank, tree) {
+  list(rank = rank, tree = tree)
+}
+
+singleton_binomial_heap_node <- function(value) {
+  tree <- binomial_tree_node(value, empty_list())
+  binomial_heap_node(0, tree)
+}
+
+binomial_heap <- function(min_value, heap_nodes = empty_list()) {
+  structure(list(min_value = min_value, heap_nodes = heap_nodes),
+            class = c("binomial_heap", "heap"))
+}
+
+#' Construct an empty binomial heap
+#' @return an empty binomial heap
+#' @export
+empty_binomial_heap <- function() binomial_heap(NA)
+
+#' Test whether a binomial heap is empty
+#' @param x binomial heap
+#' @return Whether the heap is empty
+#' @method is_empty binomial_heap
+#' @export
+is_empty.binomial_heap <- function(x) is_empty(x$heap_nodes)
+
+#' @method find_minimal binomial_heap
+#' @export
+find_minimal.binomial_heap <- function(heap) {
+  if (is_empty(heap)) stop("Can't get the minimal value in an empty heap")
+  heap$min_value
+}
+
+# The trees in a binomial heaps are ordered by rank and should be thought of as
+# one bits in a binary number. When we insert an element it sets the first bit to zero
+# but if that bit is already set we must carry it so we create a new tree from the
+# new tree and the former lowest rank tree and then carry that in a recursive call
+insert_binomial_node <- function(new_node, heap_nodes) {
+  if (is_empty(heap_nodes)) {
+    return(list_cons(new_node, empty_list()))
+  }
+
+  first_node <- list_head(heap_nodes)
+  if (new_node$rank < first_node$rank) {
+    list_cons(new_node, heap_nodes)
+  } else {
+    new_tree <- link_binomial_trees(new_node$tree, first_node$tree)
+    new_node <- binomial_heap_node(new_node$rank + 1, new_tree)
+    insert_binomial_node(new_node, list_tail(heap_nodes))
+  }
+}
+
+#' @method insert binomial_heap
+#' @export
+insert.binomial_heap <- function(x, elm, ...) {
+  if (is_empty(x)) {
+    nodes <- list_cons(singleton_binomial_heap_node(elm), empty_list())
+    binomial_heap(elm, nodes)
+  } else {
+    new_min_value <- min(find_minimal(x), elm)
+    new_node <- singleton_binomial_heap_node(elm)
+    new_nodes <- insert_binomial_node(new_node, x$heap_nodes)
+    binomial_heap(new_min_value, new_nodes)
+  }
+}
+
+# merging two lists of heap nodes work like binary addition...
+merge_heap_nodes <- function(x, y) {
+  if (is_empty(x)) return(y)
+  if (is_empty(y)) return(x)
+
+  first_x <- list_head(x)
+  first_y <- list_head(y)
+  if (first_x$rank < first_y$rank) {
+    list_cons(first_x, merge_heap_nodes(list_tail(x), y))
+  } else if (first_y$rank < first_x$rank) {
+    list_cons(first_y, merge_heap_nodes(list_tail(y), x))
+  } else {
+    new_tree <- link_binomial_trees(first_x$tree, first_y$tree)
+    new_node <- binomial_heap_node(first_x$rank + 1, new_tree)
+    merge_heap_nodes(new_node, merge_heap_nodes(list_tail(x), list_tail(y)))
+  }
+}
+
+#' @method merge binomial_heap
+#' @export
+merge.binomial_heap <- function(x, y, ...) {
+  if (is_empty(x)) return(y)
+  if (is_empty(y)) return(x)
+  new_min_value <- min(find_minimal(x), find_minimal(y))
+  new_nodes <- merge_heap_nodes(x$heap_nodes, y$heap_nodes)
+  binomial_heap(new_min_value, new_nodes)
+}
+
+get_minimal_node <- function(min_value, heap_nodes) {
+  # we should never reach an empty list since the min_value must be in there...
+  first_node <- list_head(heap_nodes)
+  if (first_node$tree$value == min_value) first_node
+  else get_minimal_node(min_value, list_tail(heap_nodes))
+}
+
+delete_minimal_node <- function(min_value, heap_nodes) {
+  # we should never reach an empty list since the min_value must be in there...
+  first_node <- list_head(heap_nodes)
+  if (first_node$tree$value == min_value) list_tail(heap_nodes)
+  else list_cons(first_node, delete_minimal_node(min_value, list_tail(heap_nodes)))
+}
+
+binomial_trees_to_nodes <- function(rank, trees) {
+  if (is_empty(trees)) {
+    empty_list()
+  } else {
+    list_cons(binomial_heap_node(rank, list_head(trees)),
+              binomial_trees_to_nodes(rank, list_tail(trees)))
+  }
+}
+
+binomial_nodes_min_value <- function(heap_nodes, current_min = NA) {
+  my_min <- function(x, y) ifelse(is.na(x), y, min(x, y))
+  if (is_empty(heap_nodes)) {
+    current_min
+  } else {
+    new_current_min <- my_min(current_min, list_head(heap_nodes)$tree$value)
+    binomial_nodes_min_value(list_tail(heap_nodes), new_current_min)
+  }
+}
+
+#' @method delete_minimal binomial_heap
+#' @export
+delete_minimal.binomial_heap <- function(heap) {
+  if (is_empty(heap)) stop("Can't delete the minimal value in an empty heap")
+
+  min_node <- get_minimal_node(heap$min_value, heap$heap_nodes)
+  other_nodes <- delete_minimal_node(heap$min_value, heap$heap_nodes)
+  min_node_nodes <- binomial_trees_to_nodes(min_node$rank - 1,
+                                            list_reverse(min_node$tree$trees))
+  new_nodes <- merge_heap_nodes(other_nodes, min_node_nodes)
+  new_min_value <- binomial_nodes_min_value(new_nodes)
+  binomial_heap(new_min_value, new_nodes)
+}
+```
+
 
 ## Splay heaps
 

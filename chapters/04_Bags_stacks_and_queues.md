@@ -4,14 +4,14 @@ In this chapter we start building data structures more complex than simple linke
 
 The abstract data type operations we want to have for the three data structures are, for bags
 
-```r
+```{r, eval=FALSE}
 is_empty <- function(x) UseMethod("is_empty")
 insert <- function(x, elm) UseMethod("insert")
 ```
 
 and sometimes
 
-```r
+```{r, eval=FALSE}
 merge <- function(x, y) UseMethod("merge")
 ```
 
@@ -19,7 +19,7 @@ where `is_empty` is the emptiness check we have used before, `insert` adds a sin
 
 For stacks, we want the operations
 
-```r
+```{r, eval=FALSE}
 is_empty <- function(x) UseMethod("is_empty")
 push <- function(x, elm) UseMethod("push")
 pop <- function(x) UseMethod("pop")
@@ -30,7 +30,7 @@ where `push` adds an element to the top of the stack, `pop` removes the top elem
 
 Finally, for queues, we want the following operations:
 
-```r
+```{r, eval=FALSE}
 is_empty <- function(x) UseMethod("is_empty")
 enqueue <- function(x, elm) UseMethod("enqueue")
 front <- function(x) UseMethod("front")
@@ -45,7 +45,7 @@ Bags are probably the simplest data structures we can imagine. They are just col
 
 Let us consider the list solution to bags. To work with a list version of bags, we need to be able to create an empty bag and test for emptiness. We can do this just as we did for creating lists:
 
-```r
+```{r, eval=FALSE}
 bag_cons <- function(elem, lst)
   structure(list(item = elem, tail = lst), 
             class = c("list_bag", "linked_list"))
@@ -59,13 +59,13 @@ The only thing worth noticing here is that I made the class of the elements in t
 
 The simplest operation is `insert` where we can just put a new element at the front of the list:
 
-```r
+```{r, eval=FALSE}
 insert.list_bag <- function(x, elm) bag_cons(elm, x)
 ```
 
 The merge operation is more problematic. If we know that the two bags we are merging contains disjoint sets of elements, we can implement it by just concatenating the corresponding lists. We can reuse the `list_concatenate` function from earlier, but we need to remember to set the class of the result. This works fine as long as we never take the tail of the result---that would give us a list and not a bag because of the way `list_concatenate` works, but then, taking the tail of a bag is not really part of the interface to bags anyway. So we could simply implement `merge` like this:
 
-```r
+```{r, eval=FALSE}
 merge.list_bag <- function(x, y) {
   result <- list_concatenate(x, y)
   class(result) <- c("list_bag", "linked_list")
@@ -89,7 +89,7 @@ inner nodes, so if we put all our values in leaves of a binary tree, we can trav
 
 We can construct a binary tree bag with some boilerplate code for the empty tree like this:
 
-```r
+```{r, eval=FALSE}
 bag_node <- function(elem, left, right)
   structure(list(item = elem, left = left, right = right),
             class = "tree_bag")
@@ -101,7 +101,7 @@ empty_tree_bag <- function() tree_bag_nil
 
 Then, for inserting a new element, we create a leaf. If we try to insert the element into an empty tree we should just return the leaf---otherwise we end up with non-binary nodes and then the running time goes out the window---but otherwise we just put the leaf to the left of a new root and the bag at the right. There is no need to keep the tree balanced since we don't plan to search in it or delete elements from it; for bags we just want to be able to traverse all the elements.
 
-```r
+```{r, eval=FALSE}
 insert.tree_bag <- function(x, elm) {
   element_leaf <- bag_node(elm, empty_tree_bag(), empty_tree_bag())
   if (is_empty(x)) element_leaf
@@ -111,13 +111,13 @@ insert.tree_bag <- function(x, elm) {
 
 [@Fig:bag_cons] illustrates a tree bag and the insert operation. On the left is shown a bag containing the elements 1, 5, and 7, created, with the operations
 
-```r
+```{r, eval=FALSE}
 x <- insert(insert(insert(empty_tree_bag(), 7, 5, 1)))
 ```
 
 On the right, we see the situation after running
 
-```r
+```{r, eval=FALSE}
 insert(x, 4)
 ```
 
@@ -127,7 +127,7 @@ The new element is added as the left tree of a new root and the original `x` bag
 
 Merging can now be done in constant time. We need to be careful not to create inner nodes with empty subtrees, but otherwise we can just create a node that has the two bags we merge as its left and right subtrees:
 
-```r
+```{r, eval=FALSE}
 merge.tree_bag <- function(x, y) {
   if (is_empty(x)) return(y)
   if (is_empty(y)) return(x)
@@ -141,7 +141,7 @@ merge.tree_bag <- function(x, y) {
 
 Traversing the elements in the bag can be done by recursing over the tree. As an example, we can write a function that extracts all the leaves as a linked list. That would look like this:
 
-```r
+```{r, eval=FALSE}
 is_leaf <- function(x) {
   is_empty(x$left) && is_empty(x$right)
 }
@@ -171,7 +171,7 @@ Stacks are, if possible, even easier to implement using linked lists. Essentiall
 
 We need some boiler plate code again to get the type right for empty stacks:
 
-```r
+```{r, eval=FALSE}
 stack_cons <- function(elem, lst)
   structure(list(item = elem, tail = lst),
             class = c("stack", "linked_list"))
@@ -183,7 +183,7 @@ empty_stack <- function() stack_nil
 
 After that, we can just reuse list functions:
 
-```r
+```{r, eval=FALSE}
 push.stack <- function(x, elm) stack_cons(elm, x)
 pop.stack <- function(x) list_tail(x)
 top.stack <- function(x) list_head(x)
@@ -247,7 +247,7 @@ What we want, essentially, is to have `front` have the side effect of moving ele
 
 Since we can modify environments, we can just make an environment object and use it as our queue. We can construct it like this, set the class so we can treat it as both an environment and a queue, and store the two lists in it:
 
-```r
+```{r, eval=FALSE}
 queue_environment <- function(front, back) {
   e <- new.env(parent = emptyenv())
   e$front <- front
@@ -263,7 +263,7 @@ Obviously, this isn't a pure functional data structure nor a persistent data str
 
 We don't need a sentinel object to represent the empty queue with this representation. We can construct a queue with two empty lists and we can check if the two lists in the queue are empty:
 
-```r
+```{r, eval=FALSE}
 empty_env_queue <- function()
   queue_environment(empty_list(), empty_list())
 
@@ -273,7 +273,7 @@ is_empty.env_queue <- function(x)
 
 The operations on queues are relatively straightforward. When we add an element to the back of a queue, we just put it at the front of the back list:
 
-```r
+```{r, eval=FALSE}
 enqueue.env_queue <- function(x, elm) {
   x$back <- list_cons(elm, x$back)
   x
@@ -282,7 +282,7 @@ enqueue.env_queue <- function(x, elm) {
 
 If the front list is empty, we need to replace it with the reversed back list, and set the back list to empty, but otherwise we just take the head of the front list:
 
-```r
+```{r, eval=FALSE}
 front.env_queue <- function(x) {
   if (is_empty(x$front)) {
     x$front <- list_reverse(x$back)
@@ -294,7 +294,7 @@ front.env_queue <- function(x) {
 
 Finally, to remove an element from he front of the queue, we just replace the front with the tail of the front list. If the front list is empty, though, we need to update it first, just as for the `front` function:
 
-```r
+```{r, eval=FALSE}
 dequeue.env_queue <- function(x) {
   if (is_empty(x$front)) {
     x$front <- list_reverse(x$back)
@@ -313,14 +313,14 @@ There is an alternative way of implementing a queue as an environment that does 
 
 If we create closures---functions defined inside other functions---we get an implicit enclosing environment that we can use to update data. We can use such a closure to get a reference to a queue that we can update. We can create a local environment  that contains the front and the back lists and update these in closures, but just to show an alternative, I will instead keep a single queue object in the closure environments and update it by replacing it with updated queues when I need to. The queue object will look like this:
 
-```r
+```{r, eval=FALSE}
 queue <- function(front, back)
   list(front = front, back = back)
 ```
 
 The closures will now work as this: I create a number of functions inside another function---a function that has a local variable that refers to a queue---and return the functions in a list. When functions need to modify the queue, they assign new versions of the queue to the variable in the enclosing environment using the `` `<<-` `` assignment operator. All the closures refer to the same variable, so they all see the updated version when they need to access the queue. I collect all the closures in a list that I return from the closure-creating function, with a class set to make it work with generic functions. The full implementation looks like this:
 
-```r
+```{r, eval=FALSE}
 queue_closure <- function() {
   q <- queue(empty_list(), empty_list())
 
@@ -357,13 +357,13 @@ The basic access and modification of the queue are essentially the same as for t
 
 When I need to create an empty queue, I just call the closure:
 
-```r
+```{r, eval=FALSE}
 empty_queue <- function() queue_closure()
 ```
 
 Now, to implement the generic functions for the queue interface, we just need to dispatch calls to the appropriate closures:
 
-```r
+```{r, eval=FALSE}
 is_empty.closure_queue <- function(x) x$queue_is_empty()
 enqueue.closure_queue <- function(x, elm) {
   x$enqueue(elm)
@@ -384,7 +384,7 @@ As I mentioned, I find the implementation using an explicit environment simpler 
 
 The only reason we couldn't make the queue data structure purely functional was that the accessor function `front` needed to get to the last element in the back list, which we cannot do in amortised constant time unless we modify the queue when the front list is empty. Well, it is only one element we need access to in special cases of calls to `front`, so we can make a purely functional---truly persistent---queue if we just explicitly remember that value in a way where we can get to it in constant time. We can make an extended version of the queue that contains the two lists, front and back, *and* the element we need to return if we call `front` on a queue when the front list is empty:
 
-```r
+```{r, eval=FALSE}
 queue_extended <- function(x, front, back)
   structure(list(x = x, front = front, back = back),
             class = "extended_queue")
@@ -394,7 +394,7 @@ With this representation, we will require that we always satisfy the invariant t
 
 We don't need a sentinel object for this implementation of queues; testing whether a queue is empty can still be done just by testing if the two lists are empty. We can create an empty queue from two empty lists, and if they are both empty, we don't need to have any particular value for the last element of the back list---we already know it is empty so we shouldn't try to get to the front of the queue in either case.
 
-```r
+```{r, eval=FALSE}
 empty_extended_queue <- function()
   queue_extended(NA, empty_list(), empty_list())
   
@@ -404,7 +404,7 @@ is_empty.extended_queue <- function(x)
 
 When we add an element to the back of a queue, we now need to remember the value of the element if it is going to end up at the back of the back list. It will, if the back queue is empty, so if `back` is empty, we remember the value we add in `x`; otherwise, we keep remembering the value we already stored in the queue:
 
-```r
+```{r, eval=FALSE}
 enqueue.extended_queue <- function(x, elm)
   queue_extended(ifelse(is_empty(x$back), elm, x$x),
                  x$front, list_cons(elm, x$back))
@@ -412,7 +412,7 @@ enqueue.extended_queue <- function(x, elm)
 
 When we need the front element of the queue, we are in one of two situations: either the `front` list is empty, in which case we need to return the last element in `back`, which we have stored in `x`. If `front` is not empty, we can just return the head of that list:
 
-```r
+```{r, eval=FALSE}
 front.extended_queue <- function(x) {
   if (is_empty(x$front)) x$x
   else list_head(x$front)
@@ -421,7 +421,7 @@ front.extended_queue <- function(x) {
 
 When we remove the front element of the queue, we should just remove the front element of `front`, except when `front` is empty. Then we should reverse `back` and put it at the front, and when we empty `back` then `x` doesn't have any particular meaning any longer:
 
-```r
+```{r, eval=FALSE}
 dequeue.extended_queue <- function(x) {
   if (is_empty(x$front))
     x <- queue_extended(NA, list_reverse(x$back), empty_list())
@@ -449,7 +449,7 @@ The queue implementations we have seen here are pretty fast if we treat them as 
 
 A double-ended queue, also known as a "deque", is a queue where you can add and remove elements from both ends of the queue. The operations on a double-ended queue, as an abstract data structure, would be these:
 
-```r
+```{r, eval=FALSE}
 enqueue_front <- function(x, elm) UseMethod("enqueue_front")
 enqueue_back <- function(x, elm) UseMethod("enqueue_back")
 
@@ -477,7 +477,7 @@ To implement double-ended queues, we need two operations: get the first half of 
 
 If we know how many elements are in half the list, we can use these two functions for this:
 
-```r
+```{r, eval=FALSE}
 list_get_n_reversed <- function(lst, n) {
   l <- empty_list()
   while (n > 0) {
@@ -508,7 +508,7 @@ so we should be able to move elements from one list to the other in the time we 
 
 We can get the list length like this:
 
-```r
+```{r, eval=FALSE}
 list_length <- function(lst) {
   n <- 0
   while (!is_empty(lst)) {
@@ -521,7 +521,7 @@ list_length <- function(lst) {
 
 We can then implement the double-ended queue like this:
 
-```r
+```{r, eval=FALSE}
 deque_environment <- function(front, back) {
   e <- new.env(parent = emptyenv())
   e$front <- front
@@ -592,7 +592,7 @@ It is very easy to get it *almost* right when you implement data structures, but
 
 The solution to this problem is simple enough, though. If we can figure out the lengths of the two lists in constant time, we can also move half of them in the allotted time. The simplest way of knowing the length of the lists when we need it is to simply keep track of it. So we can add the lengths of the lists to the double-ended queue as extra information.
 
-```r
+```{r, eval=FALSE}
 deque_environment <- function(front, back, 
                               front_length, back_length) {
   e <- new.env(parent = emptyenv())
@@ -612,7 +612,7 @@ The test for emptiness doesn't have to change---there, we just check if the list
 
 Whenever we add an element to a list, we have to add one to the length bookkeeping as well:
 
-```r
+```{r, eval=FALSE}
 enqueue_back.env_deque <- function(x, elm) {
   x$back <- list_cons(elm, x$back)
   x$back_length <- x$back_length + 1
@@ -627,7 +627,7 @@ enqueue_front.env_deque <- function(x, elm) {
 
 Now, when modifying the lists, we need to update the lengths as well. That is used several places, so we can implement to helper functions to keep track of it like this:
 
-```r
+```{r, eval=FALSE}
 move_front_to_back <- function(x) {
   n <- list_length(x$front)
   m <- ceiling(n)
@@ -649,7 +649,7 @@ move_back_to_front <- function(x) {
 
 Then, we can update the operations like this:
 
-```r
+```{r, eval=FALSE}
 front.env_deque <- function(x) {
   if (is_empty(x$front)) move_back_to_front(x)
   list_head(x$front)
@@ -690,19 +690,19 @@ Because lazy evaluation is not the natural evaluation strategy in R, except for 
 
 Expressions in R are evaluated immediately except for expressions that are parsed as parameters to functions, see @mailund2017functional. This means that an expression such as
 
-```r
+```{r, eval=FALSE}
 1:10000
 ```
 
 immediately creates a vector of ten thousand elements. However, if we write a function like this:
 
-```r
+```{r, eval=FALSE}
 f <- function(x, y) x
 ```
 
 where we don't access y, and call it with parameters like these
 
-```r
+```{r, eval=FALSE}
 f(5, 1:10000)
 ```
 
@@ -940,7 +940,7 @@ Following @okasaki_1995 we will work our way up to a queue solution with worst-c
 
 We represent the queue as a front and back list as before, and we have to keep track of the list lengths in this data structure as well. In this case we will use lazy lists, but we will get to that. The constructor for the queue looks like this:
 
-```r
+```{r, eval=FALSE}
 lazy_queue <- function(front, back, front_length, back_length) {
   structure(list(front = front, back = back, 
                  front_length = front_length, 
@@ -951,7 +951,7 @@ lazy_queue <- function(front, back, front_length, back_length) {
 
 We can construct an empty queue, and check for emptiness, like this:
 
-```r
+```{r, eval=FALSE}
 empty_lazy_queue <- function() lazy_queue(nil, nil, 0, 0)
 is_empty.lazy_queue <- function(x) 
   is_nil(x$front) && is_nil(x$back)
@@ -961,7 +961,7 @@ We will have the following invariant for the queue: the back list can at most be
 
 The implementation of the queue is based on a "rotate" function that combines concatenation and reversal. The function looks like this:
 
-```r
+```{r, eval=FALSE}
 rot <- function(front, back, a) {
   force(front)
   force(back)
@@ -979,7 +979,7 @@ It operates on three lists, the front list, the back list, and an accumulator. T
 
 To make sure that we call the rotate function whenever we need to, to satisfy the invariant, we wrap all queue construction calls in the following function:
 
-```r
+```{r, eval=FALSE}
 make_q <- function(front, back, front_length, back_length) {
   if (back_length <= front_length)
     lazy_queue(front, back, front_length, back_length)
@@ -993,7 +993,7 @@ Its only purpose is to call rotate when we need to. Otherwise, it just construct
 
 The implementation of the queue abstract interface is relatively straightforward once we have these two functions:
 
-```r
+```{r, eval=FALSE}
 enqueue.lazy_queue <- function(x, elm) 
   make_q(x$front, cons(elm, x$back),
          x$front_length, x$back_length + 1)
@@ -1142,7 +1142,7 @@ For the worst-case complexity analysis, we first notice that enqueue operations 
 
 With `front` and `dequeue` we access lazy lists, so here we might have to actually call the rotation operation. Although the operation looks like it would be a constant time operation
 
-```r
+```{r, eval=FALSE}
 lazy_thunk(cons(car(front), 
                 rot(cdr(front), cdr(back), cons(car(back), a))))
 ```
@@ -1159,7 +1159,7 @@ To get constant worst-time operations, we need to do a little more rotation work
 
 In the `rot` function we `force` all the parameters.
 
-```r
+```{r, eval=FALSE}
 rot <- function(front, back, a) {
   force(front)
   force(back)
@@ -1177,7 +1177,7 @@ We typically have to `force` arguments to avoid problems that occur when express
 
 Try modifying the function to look like this:
 
-```r
+```{r, eval=FALSE}
 rot <- function(front, back, a) {
   if (is_nil(front)) cons(car(back), a)
   else {
@@ -1190,7 +1190,7 @@ rot <- function(front, back, a) {
 
 If you then run this code
 
-```r
+```{r, eval=FALSE}
 q <- empty_lazy_queue()
 for (x in 1:10000) {
   q <- enqueue(q, x)
@@ -1208,7 +1208,7 @@ The problem is the lazy evaluation of the accumulator. In the recursive calls we
 
 The most common pitfall with R's lazy evaluation of parameters is the issue with changing variables. That problem might cause your functions to work incorrectly. This is a different pitfall that will give you the right answer if you get one, but might involve evaluating many more functions than you intended. You avoid it by always being careful to `force` parameters when you return a closure, but in this case we could also explicitly evaluate the `cons(car(back),a)` expression:
 
-```r
+```{r, eval=FALSE}
 rot <- function(front, back, a) {
   if (is_nil(front)) cons(car(back), a)
   else {
@@ -1238,7 +1238,7 @@ worst-case queue, but it uses a helper list that is responsible for evaluating p
 
 Instead of keeping track of the length of the lists in the `lazy_queue` data structure, we just keep the extra helper list. We do not need to know the length of the lists in this implementation; we only need checks for empty lists.
 
-```r
+```{r, eval=FALSE}
 lazy_queue <- function(front, back, helper) {
   structure(list(front = front, back = back, helper = helper),
             class = "lazy_queue")
@@ -1247,7 +1247,7 @@ lazy_queue <- function(front, back, helper) {
 
 We then modify the `make_q` function to this:
 
-```r
+```{r, eval=FALSE}
 make_q <- function(front, back, helper) {
   if (is_nil(helper)) {
     helper <- rot(front, back, nil)
@@ -1260,7 +1260,7 @@ make_q <- function(front, back, helper) {
 
 and we update the constructor and generic functions to reflect the changed data structure:
 
-```r
+```{r, eval=FALSE}
 empty_lazy_queue <- function() 
   lazy_queue(nil, nil, nil)
 is_empty.lazy_queue <- function(x)
