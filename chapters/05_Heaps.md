@@ -187,7 +187,7 @@ leftist_heap_node <- function(
 }
 ```
 
-The class of the structure is `"leftist_heap"` and then `"heap"`, so the `vector_to_heap` function will work with this class.
+The class of the structure is `"leftist_heap"` and then `"heap"`, in case we have general heap functions that are not specific to leftist heaps.
 
 The empty list and the emptiness test uses the sentinel trick as we have used it earlier.
 
@@ -258,11 +258,24 @@ But just because we have one solution to the heap data structure there is no rea
 
 ## Binomial heaps
 
+For a second version of heaps we turn to *binomial heaps*. My presentation of this data structure is also based on @okasaki1999purely. Binomial heaps are based on *binomial trees*, which are trees with the heap structure and the additional invariants (see [@fig:binomial-trees]):
+
+* A binomial tree of rank 0 is a singleton.
+* A tree of rank $r$ has $r$ children, $t_1,t_2,\\ldots,t_r$ where $t_i$ is a binomial tree with rank $r-i$.
+
+![Binomial trees.](figures/binomial-trees){#fig:binomial-trees}
+
+We are not going to use binomial trees as an abstract data structure, so we won't give them a class and simply implement them using a `list`:
+
 ```{r, eval=FALSE}
 binomial_tree_node <- function(value, trees) {
   list(value = value, trees = trees)
 }
+```
 
+We will build up binomial trees by *linking* them. This is an operation that we will only do on trees with the same rank, and what the operation does is that it makes one of the trees the left-most sub-tree of the other. If both trees have rank $r$, then this construct a new tree of rank $r+1$. To preserve the heap property, we must make sure that the parent tree is the one with the smallest value of the two. We can implement this operation as such:
+
+```{r, eval=FALSE}
 link_binomial_trees <- function(t1, t2) {
   if (t1$value < t2$value) {
     binomial_tree_node(t1$value, list_cons(t2, t1$trees))
@@ -270,44 +283,54 @@ link_binomial_trees <- function(t1, t2) {
     binomial_tree_node(t2$value, list_cons(t1, t2$trees))
   }
 }
+```
 
+Binomial trees are not themselves an efficient approach to building heaps. In fact, we cannot use them as heaps at all. We can, of course, easily get the minimal value from the root, but we cannot represent an arbitrary number of elements in binomial trees---they don't come in all sizes because of the invariants---and manipulation of binomial trees do not easily allow the heap operations. Instead, a binomial heap is a list of trees, each with their associated rank so we can keep track of those. The minimal value in the heap will be in one of the roots of these trees, but since finding it would require searching through the list, we will remember it explicitly.
+
+```{r, eval=FALSE}
 binomial_heap_node <- function(rank, tree) {
   list(rank = rank, tree = tree)
 }
+```
 
-singleton_binomial_heap_node <- function(value) {
-  tree <- binomial_tree_node(value, empty_list())
-  binomial_heap_node(0, tree)
-}
-
+```{r, eval=FALSE}
 binomial_heap <- function(min_value, heap_nodes = empty_list()) {
   structure(list(min_value = min_value, heap_nodes = heap_nodes),
             class = c("binomial_heap", "heap"))
 }
+```
 
-#' Construct an empty binomial heap
-#' @return an empty binomial heap
-#' @export
+With this structure, an empty binomial heap is just one with no binomial trees, and we don't need a sentinel to represent such.
+
+```{r, eval=FALSE}
 empty_binomial_heap <- function() binomial_heap(NA)
-
-#' Test whether a binomial heap is empty
-#' @param x binomial heap
-#' @return Whether the heap is empty
-#' @method is_empty binomial_heap
-#' @export
 is_empty.binomial_heap <- function(x) is_empty(x$heap_nodes)
+```
 
-#' @method find_minimal binomial_heap
-#' @export
+Since we explicitly represent the minimal value in the heap, the `find_minimal` function is trivial to implement:
+
+```{r, eval=FALSE}
 find_minimal.binomial_heap <- function(heap) {
-  if (is_empty(heap)) stop("Can't get the minimal value in an empty heap")
   heap$min_value
 }
+```
 
-# The trees in a binomial heaps are ordered by rank and should be thought of as
-# one bits in a binary number. When we insert an element it sets the first bit to zero
-# but if that bit is already set we must carry it so we create a new tree from the
-# new tree and the former lowest rank tree and then carry that in a recursive call
+We now insist on the following invariant for how the binomial trees are used in a binomial heap: no two trees can have the same rank. This creates a correspondence between the rank of binomial trees in a heap and the binary representation of the number of elements in the heap: for each 1 in the binary representation we will have a tree of that rank, see [@fig:binomial-heaps].
+
+![Binomial heaps of size 0 to 5.](figures/binomial-heaps){#fig:binomial-heaps}
+
+With this invariant in mind, we can think of both insertion and merging as a variant of binary addition. Insertion is the simplest case, so we deal with that first. To insert a new value in the heap, we first create a singleton heap node, with a binomial tree of rank 0 holding the value.
+
+```{r, eval=FALSE}
+singleton_binomial_heap_node <- function(value) {
+  tree <- binomial_tree_node(value, empty_list())
+  binomial_heap_node(0, tree)
+}
+```
+
+We now need to insert this node in the list. If there is no node in there with rank 0 already, we can just put it in. If there is, however, that slot is taken and so we must do something else. We can link the existing tree of rank 0 with the new singleton, creating a node with rank 1. If that slot is free, we are done; if it is not, we must link again, and so on. Similar to how we carry a bit if we add binary numbers. If we always keep the trees in the heap ordered in increasing rank, this approach can be implemented like this:
+
+```{r, eval=FALSE}
 insert_binomial_node <- function(new_node, heap_nodes) {
   if (is_empty(heap_nodes)) {
     return(list_cons(new_node, empty_list()))
@@ -322,22 +345,24 @@ insert_binomial_node <- function(new_node, heap_nodes) {
     insert_binomial_node(new_node, list_tail(heap_nodes))
   }
 }
+```
 
-#' @method insert binomial_heap
-#' @export
+The insert operation on the heap now consist of updating the minimal value, if necessary, and inserting the new value starting from a singleton:
+
+```{r, eval=FALSE}
 insert.binomial_heap <- function(x, elm, ...) {
-  if (is_empty(x)) {
-    nodes <- list_cons(singleton_binomial_heap_node(elm), empty_list())
-    binomial_heap(elm, nodes)
-  } else {
-    new_min_value <- min(find_minimal(x), elm)
-    new_node <- singleton_binomial_heap_node(elm)
-    new_nodes <- insert_binomial_node(new_node, x$heap_nodes)
-    binomial_heap(new_min_value, new_nodes)
-  }
+  new_min_value <- min(x$min_value, elm, na.rm = TRUE)
+  new_node <- singleton_binomial_heap_node(elm)
+  new_nodes <- insert_binomial_node(new_node, x$heap_nodes)
+  binomial_heap(new_min_value, new_nodes)
 }
+```
 
-# merging two lists of heap nodes work like binary addition...
+The `na.rm = TRUE` is necessary here to deal with the case where the heap is empty. We could have avoided it by using `Inf` as the value for an empty heap as well, but I find it nicer to explicitly state that an empty heap doesn't actually have a minimal value.
+
+Merging two heaps also works similar to binary addition. We have the two heaps represented as lists of binary trees in increasing rank order, so we can implement this as list merge. Whenever the front of one list has a rank smaller than the front of the other, we can insert that element in the front of a list and make a recursive call, but when the two lists have fronts of equal rank we must link the two and merge the new tree in. We cannot simply put the new tree at the front of the merge since the existing lists might already have a slot for the rank of that tree, but we can insert it into the result of a recursive call, which will work like carrying a bit in addition.
+
+```{r, eval=FALSE}
 merge_heap_nodes <- function(x, y) {
   if (is_empty(x)) return(y)
   if (is_empty(y)) return(x)
@@ -351,67 +376,111 @@ merge_heap_nodes <- function(x, y) {
   } else {
     new_tree <- link_binomial_trees(first_x$tree, first_y$tree)
     new_node <- binomial_heap_node(first_x$rank + 1, new_tree)
-    merge_heap_nodes(new_node, merge_heap_nodes(list_tail(x), list_tail(y)))
+    rest <- merge_heap_nodes(list_tail(x), list_tail(y))
+    insert_binomial_node(new_node, rest)
   }
 }
+```
 
-#' @method merge binomial_heap
-#' @export
+The actual merge operation just needs to keep track of the new minimal value in addition to merging the heap nodes.
+
+```{r, eval=FALSE}
 merge.binomial_heap <- function(x, y, ...) {
   if (is_empty(x)) return(y)
   if (is_empty(y)) return(x)
-  new_min_value <- min(find_minimal(x), find_minimal(y))
+  new_min_value <- min(x$min_value, y$min_value)
   new_nodes <- merge_heap_nodes(x$heap_nodes, y$heap_nodes)
   binomial_heap(new_min_value, new_nodes)
 }
+```
 
+We don't need `na.rm = TRUE` in this case, since we handle empty heaps explicitly.^[If someone inserts `NA` into a heap, this would break, of course, but then, if someone does that he should have his head examined. With `NA` there is no ordering, so the whole purpose of having a priority queue goes out the window.]
+
+The insertion operation is really just a special case of merge, as it was for leftist heaps, and we could have implemented it in terms of merging as this:
+
+```{r, eval=FALSE}
+insert_binomial_node <- function(new_node, heap_nodes) {
+  merge_heap_nodes(list_cons(new_node, empty_list()), heap_nodes)
+}
+```
+
+Here, we just need to make the new node into a list and merge that into the existing heap nodes.
+
+The complexity of the merge operation comes from the correspondence to binary numbers. To represent a number of size $n$ we only need $\\log n$ bits, so for heaps of size $n$ the lists are no longer than $\\log n$. We are not simply merging them but have the added complexity of having to carry a bit, but even doing this, which is simply binary addition, the complexity remains $O(\\log n)$---the complexity of adding two numbers of size $n$ represented in binary. Since insertion is just a special case of merging, we can of course insert in $O(\\log n)$ as well.
+
+Deleting the minimal value from a binomial heap is not really a more complex operation, it just involves a lot more code because we need to manipulate lists. The minimal value is found at the root of one of the trees in the heap. We need to find this tree and we need to delete it from the list of trees. We could do this in one function returning two values, but that would involve wrapping and unwrapping the return value, so we will handle it in two operations instead. We know which value to search for in the roots from the saved minimal value in the heap, so finding the tree containing it is just a linear search through the heap nodes, and deleting it is just as simple.
+
+```{r, eval=FALSE}
 get_minimal_node <- function(min_value, heap_nodes) {
-  # we should never reach an empty list since the min_value must be in there...
   first_node <- list_head(heap_nodes)
   if (first_node$tree$value == min_value) first_node
   else get_minimal_node(min_value, list_tail(heap_nodes))
 }
 
 delete_minimal_node <- function(min_value, heap_nodes) {
-  # we should never reach an empty list since the min_value must be in there...
   first_node <- list_head(heap_nodes)
-  if (first_node$tree$value == min_value) list_tail(heap_nodes)
-  else list_cons(first_node, delete_minimal_node(min_value, list_tail(heap_nodes)))
+  if (first_node$tree$value == min_value) {
+    list_tail(heap_nodes)
+  } else {
+    rest <- delete_minimal_node(min_value, list_tail(heap_nodes))
+    list_cons(first_node, rest)
+  }
 }
+```
 
+These are linear time operations in the length of the list, but since the list we operate on cannot be longer than $O(\\log n)$ we can do them in logarithmic time in the size of the heap.
+
+Deleting the tree containing the smallest value certainly gets rid of that value, but also any other values that might be in that tree. We need to put those back into the heap. We will do this by merging them into the heap nodes. To do this, though, we need to associate them with their rank; we need to wrap them in the heap node structure. If the tree we are deleting has rank $r$, then we know that its first sub-tree has rank $r-1$, its second has rank $r-2$, and so forth, so we can iterate through the trees, carrying the rank to give to the front tree along, in a recursion that looks like this:
+
+```{r, eval=FALSE}
 binomial_trees_to_nodes <- function(rank, trees) {
   if (is_empty(trees)) {
     empty_list()
   } else {
     list_cons(binomial_heap_node(rank, list_head(trees)),
-              binomial_trees_to_nodes(rank, list_tail(trees)))
+              binomial_trees_to_nodes(rank - 1, list_tail(trees)))
   }
 }
+```
 
-binomial_nodes_min_value <- function(heap_nodes, current_min = NA) {
-  my_min <- function(x, y) ifelse(is.na(x), y, min(x, y))
+If the tree we remove has rank $r$ this is an $O(r)$ operation, but since the ranks of the trees cannot be larger than $O(\\log n)$---again, think of the binary representation of a number---this is a logarithmic operation in the size of the heap. We need to merge them into the original list, with the minimal tree removed, but they are in the wrong order. The children of a binomial tree are ordered in decreasing rank but the trees in a binomial heap are ordered in increasing rank, so we will have to reverse the list before we merge; this, we can of course also do in time $O(\\log n)$ since it is a linear time operation in the length of the list.
+
+In case you are wondering why we didn't just represent the children of binary trees in increasing order to begin with, it has to do with how we link two trees. We can link two trees in constant time because it just involves prepending a tree to a list of trees. If we wanted to store the trees in increasing rank order, we would need to append a tree to a list instead. This would either require linear time in the size of the trees ore a more complex data structure. It is easier simply to reverse the list at this point.
+
+Since we are deleting the minimal value of the heap, we also need to update the value we store for that. Here, we can simply run through the new list once it is constructed and find the smallest value in the roots of the trees.
+
+```{r, eval=FALSE}
+binomial_nodes_min_value <- function(heap_nodes, cur_min = NA) {
   if (is_empty(heap_nodes)) {
-    current_min
+    cur_min
   } else {
-    new_current_min <- my_min(current_min, list_head(heap_nodes)$tree$value)
-    binomial_nodes_min_value(list_tail(heap_nodes), new_current_min)
+    front_value <- list_head(heap_nodes)$tree$value
+    new_cur_min <- min(cur_min, front_value, na.rm = TRUE)
+    binomial_nodes_min_value(list_tail(heap_nodes), new_cur_min)
   }
 }
+```
 
-#' @method delete_minimal binomial_heap
-#' @export
+We drag the current minimal value along as an accumulator and give it the default value of `NA`. Therefore, we also need to use `na.rm = TRUE` when updating it, but using `NA` as its default value also guarantees that if we construct an empty heap when deleting the last element, it gets the minimal value set to `NA`.
+
+All these operations take time $O(\\log n)$ and the `delete_minimal` operation is just putting them all together, so we have a $O(\\log n)$ operation that looks like this:
+
+```{r, eval=FALSE}
 delete_minimal.binomial_heap <- function(heap) {
-  if (is_empty(heap)) stop("Can't delete the minimal value in an empty heap")
-
-  min_node <- get_minimal_node(heap$min_value, heap$heap_nodes)
-  other_nodes <- delete_minimal_node(heap$min_value, heap$heap_nodes)
-  min_node_nodes <- binomial_trees_to_nodes(min_node$rank - 1,
-                                            list_reverse(min_node$tree$trees))
-  new_nodes <- merge_heap_nodes(other_nodes, min_node_nodes)
+  min_node <-
+    get_minimal_node(heap$min_value, heap$heap_nodes)
+  other_nodes <-
+    delete_minimal_node(heap$min_value, heap$heap_nodes)
+  min_node_nodes <-
+    binomial_trees_to_nodes(min_node$rank - 1,
+                            min_node$tree$trees)
+  new_nodes <-
+    merge_heap_nodes(other_nodes, list_reverse(min_node_nodes))
   new_min_value <- binomial_nodes_min_value(new_nodes)
   binomial_heap(new_min_value, new_nodes)
 }
 ```
+
 
 
 ## Splay heaps
