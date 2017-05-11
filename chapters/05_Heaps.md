@@ -481,7 +481,7 @@ delete_minimal.binomial_heap <- function(heap) {
 }
 ```
 
-
+So in summery, we can implement a binomial heap with $O(1)$ `find_minimal` and $O(\\log n)$ `insert`, `merge` and `delete_minimal` worst case complexity. We can show, however, that `insert` actually runs in time $O(1)$ amortised by considering how the list of heap nodes behave compared to how many link operations we make. If you consider the original `insert_binomial_node` implementation, it is clear that we only recurse when we make a link operation, so the complexity of the function is the number of link operations plus one. You can think of each link operation as switching a one bit in the original heap list binary number to zero and the termination of the recurse as switching one zero bit to one. If we now think of switching a bit from zero to one as costing two credits instead of one, then such operations also pay for flipping them back to zero again in a later insertion. This analysis, however, is only valid if we consider the heap an ephemeral data structure---if we consider it a persistent data structure, nothing prevents us from spending the credits on the one bits more than once. The other $O(\\log n)$ worst-case operations are still $O(\\log n)$ when amortised.
 
 ## Splay heaps
 
