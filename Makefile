@@ -24,10 +24,7 @@ book.epub:  $(SOURCE_CHAPTERS) Makefile
 	(cd ebook && make CHAPTERS="$(CHAPTERS)")
 	cp ebook/book.epub book.epub
 
-book.mobi: book.epub
-	./kindlegen book.epub -o book.mobi
-
-all: book.pdf book.epub book.mobi
+all: book.pdf book.epub
 
 clean:
-	rm book.pdf book.epub book.mobi
+	rm book.pdf book.epub
