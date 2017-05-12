@@ -166,11 +166,15 @@ The heaps we will implement are based on trees. So they are slightly more compli
 
 ## Leftist heaps
 
-Leftist heaps are a classical implementation of heaps based on one simple idea: You represent the heap as a binary tree with the heap property, and you make sure that the left sub-tree is always at least as large as the right sub-tree.^[My description of leftist heaps is based on @okasaki1999purely. The original description of the data structure can be found in @Crane:1972:LLP:906397.] The structure exploits a general trick in data structure design known as "the smaller half" trick. If you have to do some computation recursively, but you only have to do it for one of two children in a binary tree, you pick the smaller of the two trees. If you do this, you slice away half of the size of the tree in each recursive call.[^smaller_half] If you slice away half the data in each recursive call, you can never recurse deeper than the logarithm of the full data size. So, if we keep the left sub-tree at least as large as the right sub-tree, and always make sure that all operations on the heaps only recurse to the right, then we have a limit on how deep we can recurse. There is a variant of this called *maxiphopic heaps* [@Okasaki:2005:ATC:1047124.1047407] that makes this more explicit, but the underlying idea is the same; maxiphopic heaps just do not require that the larger sub-tree is the left tree.
+Leftist heaps are a classical implementation of heaps based on one simple idea: You represent the heap as a binary tree with the heap property, and you make sure that the left sub-tree is always at least as large as the right sub-tree.^[My description of leftist heaps is based on @okasaki1999purely. The original description of the data structure can be found in @Crane:1972:LLP:906397.] The structure exploits a general trick in data structure design known as "the smaller half" trick. If you have to do some computation recursively, but you only have to do it for one of two children in a binary tree, you pick the smaller of the two trees. If you do this, you slice away half of the size of the tree in each recursive call.[^smaller_half] If you slice away half the data in each recursive call, you can never recurse deeper than the logarithm of the full data size.
+
+In the leftist heap we don't actually keep track of the full size of heaps to exploit this trick. We don't need trees to be balanced to operate efficiently on heaps. Instead, we worry about the total depth we might have to go to in recursions. We will always recurse to the right in the heap, so the length of the right-most path in a heap, which we will call its *rank*, is what we worry about, and we make sure that we always have the shortest path as the rightmost.
+
+There is a variant of this called *maxiphopic heaps* [@Okasaki:2005:ATC:1047124.1047407] that makes this more explicit, but the underlying idea is the same; maxiphopic heaps just do not require that the larger sub-tree is the left tree.
 
 [^smaller_half]: The "smaller half" name is an oxymoron. If we really split data in half, both half would be the same size. What we really mean is that we slice away at least one half of the data in each recursion. I didn't come up with the name, but that is the name I know the trick by.
 
-To keep the invariant that the left sub-tree is always at least as large as the right sub-tree, we keep track of tree sizes. We call this the *rank* of the tree. The structure we use to represent a leftist heap looks like this:
+To keep the invariant that the left sub-tree always have a smaller rank than the right sub-tree, we keep track of tree ranks. The structure we use to represent a leftist heap looks like this:
 
 ```{r, eval=FALSE}
 leftist_heap_node <- function(
@@ -182,7 +186,7 @@ leftist_heap_node <- function(
   structure(list(left = left, 
                  value = value, 
                  right = right, 
-                 rank = 0),
+                 rank = rank),
             class = c("leftist_heap", "heap"))
 }
 ```
@@ -482,6 +486,10 @@ delete_minimal.binomial_heap <- function(heap) {
 ```
 
 So in summery, we can implement a binomial heap with $O(1)$ `find_minimal` and $O(\\log n)$ `insert`, `merge` and `delete_minimal` worst case complexity. We can show, however, that `insert` actually runs in time $O(1)$ amortised by considering how the list of heap nodes behave compared to how many link operations we make. If you consider the original `insert_binomial_node` implementation, it is clear that we only recurse when we make a link operation, so the complexity of the function is the number of link operations plus one. You can think of each link operation as switching a one bit in the original heap list binary number to zero and the termination of the recurse as switching one zero bit to one. If we now think of switching a bit from zero to one as costing two credits instead of one, then such operations also pay for flipping them back to zero again in a later insertion. This analysis, however, is only valid if we consider the heap an ephemeral data structure---if we consider it a persistent data structure, nothing prevents us from spending the credits on the one bits more than once. The other $O(\\log n)$ worst-case operations are still $O(\\log n)$ when amortised.
+
+Because of this, constructing binomial heaps is much more efficient than constructing leftist heaps, see [@fig:heap-construction-leftist-binomial-comparison]. When we divide the the time it takes to simply construct a heap of a given size by that size, we see that the binomial heap has a flat time curve while the leftist heap grows logarithmically, telling us that in practise, the running time to construct a binomial heap is $O(n)$ while the time to construct a leftist heap is $O(n \\log n)$. This justify the much more complex data structure that binomial heaps are compared to the leftist heap; at least when we don't need a persistent data structure. The amortised analysis only works when we treat the binomial heap ephemerally.
+
+![Comparison of heap construction for leftist and binomial heaps.](figures/heap-construction-leftist-binomial-comparison){#fig:heap-construction-leftist-binomial-comparison}
 
 ## Splay heaps
 

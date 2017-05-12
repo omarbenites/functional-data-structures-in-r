@@ -39,49 +39,12 @@ reverse <- function(lst) {
   lazy_thunk(do_reverse(lst))
 }
 
-lazy_queue <- function(front, back, front_length, back_length) { 
-  structure(list(front = front, back = back,
-                 front_length = front_length,
-                 back_length = back_length),
-            class = "lazy_queue")
-}
+l1 <- cons(1, cons(2, cons(3, nil)))
+l2 <- cons(4, cons(5, cons(6, nil)))
 
-make_q <- function(front, back, front_length, back_length) { 
-  if (back_length <= front_length)
-    lazy_queue(front, back, front_length, back_length) 
-  else
-    lazy_queue(cat(front, reverse(back)), nil, front_length + back_length, 0)
-}
-
-#' Creates an empty lazy queue
-#' @export
-empty_lazy_queue <- function() lazy_queue(nil, nil, 0, 0)
-
-#' @method is_empty lazy_queue
-#' @export
-is_empty.lazy_queue <- function(x) is_nil(x$front) && is_nil(x$back)
-
-#' @method enqueue lazy_queue
-#' @export
-enqueue.lazy_queue <- function(x, elm)
-  make_q(x$front, cons(elm, x$back), x$front_length, x$back_length + 1)
-
-#' @method front lazy_queue
-#' @export
-front.lazy_queue <- function(x) car(x$front)
-
-#' @method dequeue lazy_queue
-#' @export
-dequeue.lazy_queue <- function(x)
-  make_q(cdr(x$front), x$back, x$front_length - 1, x$back_length)
-
-
-
-q <- empty_lazy_queue()
-q <- enqueue(q, 1)
-q <- enqueue(q, 2)
-q <- enqueue(q, 3)
-q <- enqueue(q, 4)
-q <- enqueue(q, 5)
-q <- enqueue(q, 6)
-
+x <- cat(l1, reverse(l2))
+car(x)
+x <- cdr(x)
+x <- cdr(x)
+x <- cdr(x)
+x <- cdr(x)
