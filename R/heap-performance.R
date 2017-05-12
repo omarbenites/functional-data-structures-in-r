@@ -16,9 +16,9 @@ evaluate <- function(empty) function(n, x) {
 # performance <- rbind(get_performance("leftist", ns, setup, evaluate(empty_leftist_heap())),
 #                      get_performance("binomial", ns, setup, evaluate(empty_binomial_heap())))
 
-ggplot(performance, aes(x = as.factor(n), y = time / n, fill = algo)) +
+ggplot(performance, aes(x = as.factor(n/1000), y = time / n, fill = algo)) +
   geom_boxplot() + 
   scale_fill_grey("Data structure") + 
-  xlab(quote(n)) + ylab(expression(Time / n)) + theme_minimal()
+  xlab("n (thousands)") + ylab(expression(Time / n)) + theme_minimal()
 ggsave("heap-construction-leftist-binomial-comparison.pdf", width = 12, height = 8, units = "cm")
 ggsave("heap-construction-leftist-binomial-comparison.png", width = 12, height = 8, units = "cm")

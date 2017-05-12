@@ -491,6 +491,7 @@ Because of this, constructing binomial heaps is much more efficient than constru
 
 ![Comparison of heap construction for leftist and binomial heaps.](figures/heap-construction-leftist-binomial-comparison){#fig:heap-construction-leftist-binomial-comparison}
 
+
 ## Splay heaps
 
 ## Brodal heaps
