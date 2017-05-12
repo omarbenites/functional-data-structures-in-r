@@ -755,7 +755,7 @@ This is very similar to how we have implemented the linked lists we have used so
 We can take any of the functions we have written for linked lists and make them into lazy lists by wrapping what they return in a thunk. Take, for example, list concatenation. Using the functions for lazy lists, the implementation we have would look like this:
 
 ```{r}
-cat <- function(l1, l2) {
+concat <- function(l1, l2) {
   rev_l1 <- nil
   while (!is_nil(l1)) {
     rev_l1 <- cons(car(l1), rev_l1)
@@ -788,7 +788,7 @@ l2 <- vector_to_list(1:100000)
 We see that the concatenation operation is slow:
 
 ```{r}
-microbenchmark(lst <- cat(l1, l2), times = 1)
+microbenchmark(lst <- concat(l1, l2), times = 1)
 ```
 
 The operation takes more than a second to complete. Accessing the list after we have concatenate `l1` and `l2`, however, is fast:
@@ -800,10 +800,10 @@ microbenchmark(car(lst), times = 1)
 
 These operations run in microseconds, and because we are not delaying any operations we spend the same time both times we call `car` on `lst`.
 
-We can now try slightly modifying `cat` to delay its evaluation by wrapping its return value in a thunk. We need to `force` its parameters to avoid the usual problems with them referring to variables in the calling environment, but we can wrap the concatenation in a thunk after that:^[I will use an explicit function, `lazy_thunk`, to wrap operations in this chapter. You could equally well just return an anonymous function, but you would have to remember to evaluate the body as a function to make it behave as a list. So, instead of returning `lazy_thunk(do_cat(l1,l2))` in the `cat` function we could return `function() do_cat(l1,l2)()`.]
+We can now try slightly modifying `concat` to delay its evaluation by wrapping its return value in a thunk. We need to `force` its parameters to avoid the usual problems with them referring to variables in the calling environment, but we can wrap the concatenation in a thunk after that:^[I will use an explicit function, `lazy_thunk`, to wrap operations in this chapter. You could equally well just return an anonymous function, but you would have to remember to evaluate the body as a function to make it behave as a list. So, instead of returning `lazy_thunk(do_cat(l1,l2))` in the `concat` function we could return `function() do_cat(l1,l2)()`.]
 
 ```{r}
-cat <- function(l1, l2) {
+concat <- function(l1, l2) {
   do_cat <- function(l1, l2) {
     rev_l1 <- nil
     while (!is_nil(l1)) {
@@ -827,7 +827,7 @@ cat <- function(l1, l2) {
 Now, the concatenation is a fast operation
 
 ```{r}
-microbenchmark(lst <- cat(l1, l2), times = 1)
+microbenchmark(lst <- concat(l1, l2), times = 1)
 ```
 
 The first time we access the list, though, we pay for the concatenation. We only pay the first time, though.
@@ -837,26 +837,26 @@ microbenchmark(car(lst), times = 1)
 microbenchmark(car(lst), times = 1)
 ```
 
-We still haven't achieved much by doing this. We have just moved the cost of concatenation from the `cat` call to the first time we access the list. If we abandon the loop-version of the concatenation function, though, and go back to the recursive version, we can get a simpler version where all operations are constant time.
+We still haven't achieved much by doing this. We have just moved the cost of concatenation from the `concat` call to the first time we access the list. If we abandon the loop-version of the concatenation function, though, and go back to the recursive version, we can get a simpler version where all operations are constant time.
 
 ```{r}
-cat <- function(l1, l2) {
+concat <- function(l1, l2) {
   force(l1)
   force(l2)
   if (is_nil(l1)) l2
   else {
     lazy_thunk <- function(lst) function() lst()
-    lazy_thunk(cons(car(l1), cat(cdr(l1), l2)))
+    lazy_thunk(cons(car(l1), concat(cdr(l1), l2)))
   }
 }
 ```
 
 In this function, we don't actually need to `force` `l1` since we directly use it, but just for consistency I will always `force` the arguments in functions that return thunks.
 
-We abandoned this version of the concatenation function because we would recurse too deeply on long lists, but by wrapping the recursive call in a thunk that we evaluate lazily we do not have this problem. When we evaluate the result we get from calling this `cat` we only do one step of the concatenation recursion. Now, concatenation is a relatively fast operation---it needs to set up the thunk but it doesn't do any work on the lists:
+We abandoned this version of the concatenation function because we would recurse too deeply on long lists, but by wrapping the recursive call in a thunk that we evaluate lazily we do not have this problem. When we evaluate the result we get from calling this `concat` we only do one step of the concatenation recursion. Now, concatenation is a relatively fast operation---it needs to set up the thunk but it doesn't do any work on the lists:
 
 ```{r}
-microbenchmark(lst <- cat(l1, l2), times = 1)
+microbenchmark(lst <- concat(l1, l2), times = 1)
 ```
 
 The first time we access the concatenated lists we need to evaluate the thunk. This is fast compared to actually concatenating them and is a constant time operation:
@@ -930,9 +930,7 @@ microbenchmark(car(lst), times = 1)
 microbenchmark(car(lst), times = 1)
 ```
 
-Since reversing the back list of a queue is the expensive operation, and since we cannot get away from that with lazy lists, it seems like we are not getting far, but we did gain a little. Now, at least, we only pay for a reversal once, so we can access a queue that has just reversed its back list and only pay for the operation the first time. If we use the queue persistently, we can access the same queue cheaper in any following operations. Of course, nothing prevents us them from going back to the queue in the state it was just *before* we called the reversal and start from there, and then we are back to potentially calling expensive operations more than once.
-
-To do slightly better, we will need to construct lists that contain partly reversed and partly correctly-ordered lists as we update the queue.
+Since reversing the back list of a queue is the expensive operation, and since we cannot get away from that with lazy lists, it seems like we are not getting far, but we did gain a little. It is now possible to cheaply set up a reversal that we just have to pay for later. This, we can use to construct a lazy queue where we consider this reversal a depth that must be paid off by all future users that plan to see the effect of it. Because we memorise lazy evaluated expressions, only one of them will, but because all will have to we guarantee that any amortised analysis gives us time bounds that also work if we treat the queues as persistent 
 
 ### Amortised constant time, logarithmic worst-case, lazy queues
 
@@ -960,6 +958,8 @@ is_empty.lazy_queue <- function(x)
 ```
 
 We will have the following invariant for the queue: the back list can at most be one longer than the front list. Whenever the back list grows larger than the front list, we are going to move  the elements in it to the front queue, but we will do so lazily.
+
+The idea behind the approach is this: if we lazily reverse and concatenate when the front list is longer than the back list, then any future use of the queue that actually invokes the reversal will have had to first dequeue enough elements from the front list to pay for the the reversal. Unlike the previous queue implementations, where the amortised analysis rely on earlier enqueue operations paying for an expensive reversal, this implementation rely on future users invoking enough cheap dequeue operations before they can invoke an expensive one. We do not rely on the past having saved up for the expensive operation; we have put a debt into the queue---the expensive reversal---but any future user that wants to use the reversal will first have had to pay off the debt. Only one future user will actually invoke the expensive operation, all other future users might have paid off on the depth, but that is fine. You can't spend your saving more than once but there is no problem with paying off a depth more than once. This now works as a persistent data structure.
 
 The implementation of the queue is based on a "rotate" function that combines concatenation and reversal. The function looks like this:
 

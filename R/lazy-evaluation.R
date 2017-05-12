@@ -12,44 +12,50 @@ cdr <- function(lst) lst()$cdr
 
 
 cat <- function(l1, l2) {
+  print("cat")
   force(l1)
+  print("force l2")
   force(l2)
   if (is_nil(l1)) l2
   else {
-    lazy_thunk <- function(lst) function() lst()
+    lazy_thunk <- function(lst) function() { print("invoking cat"); lst() }
     lazy_thunk(cons(car(l1), cat(cdr(l1), l2)))
   }
 }
 
-
-rot <- function(front, back, a) {
-  print("rot")
-  force(a)
-  if (is_nil(front)) cons(car(back), a)
-  else {
-    lazy_thunk <- function(lst) function() { print("eval"); lst() }
-    lazy_thunk(cons(car(front), rot(cdr(front), cdr(back), cons(car(back), a))))
+reverse <- function(lst) { 
+  print("reverse")
+  do_reverse <- function(lst) {
+    print("do_reverse")
+    result <- nil
+    while (!is_nil(lst)) {
+      result <- cons(car(lst), result)
+      lst <- cdr(lst) 
+    }
+    result
   }
+  force(lst)
+  lazy_thunk <- function(lst) function() lst()
+  lazy_thunk(do_reverse(lst))
 }
 
-lazy_queue <- function(front, back, helper) {
-  structure(list(front = front, back = back, helper = helper),
+lazy_queue <- function(front, back, front_length, back_length) { 
+  structure(list(front = front, back = back,
+                 front_length = front_length,
+                 back_length = back_length),
             class = "lazy_queue")
 }
 
-
-make_q <- function(front, back, helper) {
-  if (is_nil(helper)) {
-    helper <- rot(front, back, nil)
-    lazy_queue(helper, nil, helper)
-  } else {
-    lazy_queue(front, back, cdr(helper))
-  }
+make_q <- function(front, back, front_length, back_length) { 
+  if (back_length <= front_length)
+    lazy_queue(front, back, front_length, back_length) 
+  else
+    lazy_queue(cat(front, reverse(back)), nil, front_length + back_length, 0)
 }
 
 #' Creates an empty lazy queue
 #' @export
-empty_lazy_queue <- function() lazy_queue(nil, nil, nil)
+empty_lazy_queue <- function() lazy_queue(nil, nil, 0, 0)
 
 #' @method is_empty lazy_queue
 #' @export
@@ -58,7 +64,7 @@ is_empty.lazy_queue <- function(x) is_nil(x$front) && is_nil(x$back)
 #' @method enqueue lazy_queue
 #' @export
 enqueue.lazy_queue <- function(x, elm)
-  make_q(x$front, cons(elm, x$back), x$helper)
+  make_q(x$front, cons(elm, x$back), x$front_length, x$back_length + 1)
 
 #' @method front lazy_queue
 #' @export
@@ -67,7 +73,7 @@ front.lazy_queue <- function(x) car(x$front)
 #' @method dequeue lazy_queue
 #' @export
 dequeue.lazy_queue <- function(x)
-  make_q(cdr(x$front), x$back, x$helper)
+  make_q(cdr(x$front), x$back, x$front_length - 1, x$back_length)
 
 
 
@@ -79,16 +85,3 @@ q <- enqueue(q, 4)
 q <- enqueue(q, 5)
 q <- enqueue(q, 6)
 
-eval(substitute(substitute(x,environment(q$front)),list(x=body(q$front))))
-eval(substitute(substitute(x,environment(q$helper)),list(x=body(q$helper))))
-eval(substitute(substitute(x,environment(q$back)),list(x=body(q$back))))
-as.list(environment(q$front))
-as.list(environment(q$helper))
-
-q <- enqueue(q, 7)
-front(q)
-
-q <- dequeue(q)
-q <- dequeue(q)
-
-eval(substitute(substitute(x,environment(q$front)),list(x=body(q$front))))
