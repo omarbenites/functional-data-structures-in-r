@@ -497,6 +497,16 @@ I should also stress that this benefit of using binomial heaps over leftist heap
 
 ## Splay heaps
 
+
+
+see [@fig:heap-construction-binomial-splay-comparison].
+
+see [@fig:heap-construction-linear-splay-leftist].
+
+![Constructing splay heaps one element at a time.](figures/heap-construction-binomial-splay-comparison){#fig:heap-construction-binomial-splay-comparison}
+
+![Constructing splay heaps by iteratively merging heaps.](figures/heap-construction-linear-splay-leftist){#fig:heap-construction-linear-splay-leftist}
+
 ## Brodal heaps
 
 
