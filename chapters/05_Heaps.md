@@ -489,8 +489,11 @@ So in summery, we can implement a binomial heap with $O(1)$ `find_minimal` and $
 
 Because of this, constructing binomial heaps is much more efficient than constructing leftist heaps, see [@fig:heap-construction-leftist-binomial-comparison]. When we divide the the time it takes to simply construct a heap of a given size by that size, we see that the binomial heap has a flat time curve while the leftist heap grows logarithmically, telling us that in practise, the running time to construct a binomial heap is $O(n)$ while the time to construct a leftist heap is $O(n \\log n)$. This justify the much more complex data structure that binomial heaps are compared to the leftist heap; at least when we don't need a persistent data structure. The amortised analysis only works when we treat the binomial heap ephemerally.
 
-![Comparison of heap construction for leftist and binomial heaps.](figures/heap-construction-leftist-binomial-comparison){#fig:heap-construction-leftist-binomial-comparison}
+![Comparison of heap construction for leftist and binomial heaps when inserting one element at a time.](figures/heap-construction-leftist-binomial-comparison){#fig:heap-construction-leftist-binomial-comparison}
 
+I should also stress that this benefit of using binomial heaps over leftist heaps is only relevant when we build heaps by inserting elements one at a time. If we use the algorithm that constructs heaps by iteratively merging larger and larger heaps, then both binomial and leftist heaps are constructed in linear time and the leftist heap has a smaller overhead, see [@fig:heap-construction-linear].
+
+![Constructing heaps using the linear time algorithm.](figures/heap-construction-linear){#fig:heap-construction-linear}
 
 ## Splay heaps
 
