@@ -497,6 +497,193 @@ I should also stress that this benefit of using binomial heaps over leftist heap
 
 ## Splay heaps
 
+A somewhat different approach to heaps is so-called *splay trees*. These are really search trees and have the search tree property---all values in a left subtree are smaller than the value in the root and all values in the right subtree are larger---rather than the heap property. Because they are search trees we will consider them in more detail in the next chapter, but here we will use them to implement a heap.
+
+The structure for a splay tree is just the same as for a search tree, and we have already seen this structure in [Chapter @sec:immutable]. A search tree is defined recursively: it consists of a node with a value and a left and a right subtree that are also search trees. The invariant for search trees is the one mentioned above: the value in the node is larger than all values in the left subtree and smaller than all values in the right subtree. We can implement this structure thusly:
+
+```{r, eval=FALSE}
+splay_tree_node <- function(value, left = NULL, right = NULL) {
+  list(left = left, value = value, right = right)
+}
+```
+
+The structure we implemented in [Chapter @sec:immutable] used sentinel trees for empty trees. This was because we needed to do dispatch on generic methods on empty trees. For the splay heap we will implement now, we will not represent the heap as just a tree but wrap it in a structure that contains the tree and the minimal value in the heap, so as with binomial heaps we have a representation of empty heaps that doesn't rely on sentinels. Because of this, we will simply use `NULL` to represent empty trees.[^NULL_vs_sentinels] The structure for splay heaps, the creation of empty heaps, and the test for emptiness, is implemented like this:
+
+```{r, eval=FALSE}
+splay_heap <- function(min_value, splay_tree) {
+  structure(list(min_value = min_value, tree = splay_tree),
+            class = c("splay_heap", "heap"))
+}
+
+empty_splay_heap <- function() splay_heap(NA, NULL)
+is_empty.splay_heap <- function(x) is.null(x$tree)
+```
+
+[^NULL_vs_sentinels]: Using `NULL` to represent empty trees is a very simple solution, but it does add some extra danger to working with the trees. In R, if you access a named value in a list that isn't actually in the list, you will get `NULL` back. This means, for example, that if you misspell a variable, say write `x$lfet` instead of `x$left`, you will not get any complained when running the code, but you will always get `NULL` instead of what the real left subtree might be. Interpreting the default value when you have made an error as a meaningful representation of an empty tree is risky. We have to be extra careful when we do it.
+
+We explicitly store the minimal value in the heap so we can return it in constant time:
+
+```{r, eval=FALSE}
+find_minimal.splay_heap <- function(heap) {
+  heap$min_value
+}
+```
+
+To actually find the node with the minimal value in a search tree, we need to find the leftmost node in the tree. This is, by the search tree property, the smallest value. We can find this node just by recursing to the left until we reach a node where the left child is empty.
+
+```{r, eval=FALSE}
+splay_find_minimal_value <- function(tree) {
+  if (is.null(tree)) NA
+  else if (is.null(tree$left)) tree$value
+  else splay_find_minimal_value(tree$left)
+}
+```
+
+Here, we have a special case when the entire tree is empty---we use `NA` to represent the minimal value in that case. We should only hit this case if the entire heap is empty, though. Similar to finding the minimal value, we could find the maximum value by recursing to the right until the right subtree is empty.
+
+This search takes time proportional to the depth of the tree. If we keep the tree balanced, then this would be $O(\\log n)$, but for splay trees we do not explicitly balance them. Instead, we blindly rearrange trees whenever we modify them.[^rearrange_modify_splay] Whenever we delete or insert values, we will do a kind of rebalancing that pulls the modified parts of the tree closer to the root.
+
+[^rearrange_modify_splay]: For a full splay tree implementation, we will also modify trees when we search in them. For the heap variant, where we explicitly store the minimal value, we do not need to do this, so for the splay heap we only modify trees when we insert or remove from them.
+
+We see some of this rearrangement in the code we use for deleting the smallest value in a tree. This value is the leftmost node in the tree, and a recursion that removes it has three cases: two basis cases that differ only in whether the leftmost node is the only left tree on the leftmost path or if it is the left tree of a left tree, and one recursive case, see [@fig:splay-heap-delete-min]. In the first basis case, we can only return the right subtree. In the second case, we also replace the leftmost node with its right subtree, so you can think of it as a special case. If we were just removing the leftmost tree, we wouldn't need this special case; we could just recurse to the left and use the result as the left subtree when returning from the recursion. The reason we need it is found in the recursive case. Here we need access to the root of a tree, its right subtree, its left subtree and that subtrees two children. We will call recursively on the left subtree's left subtree and then rotate the tree as sown in [@fig:splay-heap-delete-min]. It is this rotation that has the special case when $x$ is the minimal value in the tree that we handle as the second basis case.
+
+![Three cases in the recursion to delete the minimal node in a splay heap. In the recursive case, the tree $a'$ refers to the result of calling recursively on tree $a$.](figures/splay-heap-delete-min){#fig:splay-heap-delete-min}
+
+The code for deleting the minimal node in a splay tree is this:
+
+```{r, eval=FALSE}
+splay_delete_minimal_value <- function(tree) {
+  if (is.null(tree$left)) {
+    tree$right
+
+  } else {
+    a <- tree$left$left
+    x <- tree$left$value
+    b <- tree$left$right
+    y <- tree$value
+    c <- tree$right
+
+    if (is.null(a))
+      splay_tree_node(left = b, value = y, right = c)
+    else
+      splay_tree_node(
+        left = splay_delete_minimal_value(a),
+        value = x,
+        right = splay_tree_node(left = b, value = y, right = c)
+      )
+  }
+}
+```
+
+The rotations we perform on the tree as we delete the minimal value does not balance the tree, but it does shorten the leftmost path. All nodes on the existing leftmost path will end up at half the depth they were at before the call. The nodes in tree $b$ will either get one node closer to the root or remain at their original depth, and nodes in tree $c$ will either remain at their current depth or increase their depth by one node. We are not balancing the tree but we are making the search path for the smallest value shorter on average, and it can be shown that we end up with an amortised $O(\\log n)$ running time per `delete_minimal` operation if we use this approach.^[Proving this is mostly an exercise in arithmetic and I will not repeat this analysis here. If you are interested, you can check @okasaki1999purely or any text book describing splay trees.]
+
+To delete the minimal value in the splay heap, we need to delete it from the underlying splay tree and then update the stored minimal value. We can implement this operation this way:
+
+```{r, eval=FALSE}
+delete_minimal.splay_heap <- function(heap) {
+  if (is_empty(heap)) stop("Can't delete the minimal value in an empty heap")
+  new_tree <- splay_delete_minimal_value(heap$tree)
+  new_min_value <- splay_find_minimal_value(new_tree)
+  splay_heap(min_value = new_min_value, splay_tree = new_tree)
+}
+```
+
+```{r, eval=FALSE}
+partition <- function(pivot, tree) {
+  if (is.null(tree)) {
+    smaller <- NULL
+    larger <- NULL
+
+  } else {
+    a <- tree$left
+    x <- tree$value
+    b <- tree$right
+    if (x <= pivot) {
+      if (is.null(b)) {
+        smaller <- tree
+        larger <- NULL
+      } else {
+        b1 <- b$left
+        y <- b$value
+        b2 <- b$right
+        if (y <= pivot) {
+          part <- partition(pivot, b2)
+          smaller <- splay_tree_node(left = splay_tree_node(left = a,
+                                                            value = x,
+                                                            right = b1),
+                                      value = y,
+                                      right = part$smaller)
+          larger <- part$larger
+        } else {
+          part <- partition(pivot, b1)
+          smaller <- splay_tree_node(left = a,
+                                     value = x,
+                                     right = part$smaller)
+          larger <- splay_tree_node(left = part$larger,
+                                    value = y,
+                                    right = b2)
+        }
+      }
+    } else {
+      if (is.null(a)) {
+        smaller <- NULL
+        larger <- tree
+      } else {
+        a1 <- a$left
+        y <- a$value
+        a2 <- a$right
+        if (y <= pivot) {
+          part <- partition(pivot, a2)
+          smaller <- splay_tree_node(left = a1, value = y, right = part$smaller)
+          larger <- splay_tree_node(left = part$larger, value = x, right = b)
+        } else {
+          part <- partition(pivot, a1)
+          smaller <- part$smaller
+          larger <- splay_tree_node(left = part$larger, value = y,
+                                    right = splay_tree_node(left = a2, value = x, right = b))
+        }
+      }
+    }
+  }
+  list(smaller = smaller, larger = larger)
+}
+```
+
+```{r, eval=FALSE}
+insert.splay_heap <- function(x, elm, ...) {
+  part <- partition(elm, x$tree)
+  new_tree <- splay_tree_node(value = elm, left = part$smaller, right = part$larger)
+  new_min_value <- min(x$min_value, elm, na.rm = TRUE)
+  splay_heap(min_value = new_min_value, splay_tree = new_tree)
+}
+```
+
+```{r, eval=FALSE}
+merge_splay_trees <- function(x, y) {
+  if (is.null(x)) return(y)
+  if (is.null(y)) return(x)
+
+  a <- x$left
+  val <- x$value
+  b <- x$right
+
+  part <- partition(val, y)
+  splay_tree_node(left = merge_splay_trees(part$smaller, a),
+                  value = val,
+                  right = merge_splay_trees(part$larger, b))
+}
+```
+
+```{r, eval=FALSE}
+merge.splay_heap <- function(x, y, ...) {
+  if (is_empty(x)) return(y)
+  if (is_empty(y)) return(x)
+
+  new_tree <- merge_splay_trees(x$tree, y$tree)
+  new_min_value <- min(x$min_value, y$min_value, na.rm = TRUE)
+  splay_heap(min_value = new_min_value, splay_tree = new_tree)
+}
+```
 
 
 see [@fig:heap-construction-binomial-splay-comparison].
@@ -506,6 +693,10 @@ see [@fig:heap-construction-linear-splay-leftist].
 ![Constructing splay heaps one element at a time.](figures/heap-construction-binomial-splay-comparison){#fig:heap-construction-binomial-splay-comparison}
 
 ![Constructing splay heaps by iteratively merging heaps.](figures/heap-construction-linear-splay-leftist){#fig:heap-construction-linear-splay-leftist}
+
+![Constructing splay heaps one element at a time for different types of input.](figures/splay-heap-construction-element-wise){#fig:splay-heap-construction-element-wise}
+
+![Constructing splay heaps by iteratively merging for different types of input.](figures/splay-heap-construction-iterative){#fig:splay-heap-construction-iterative}
 
 ## Brodal heaps
 

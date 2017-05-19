@@ -1,4 +1,4 @@
-# Immutable and persistent data
+# Immutable and persistent data {#sec:immutable}
 
 What prevents us from implementing traditional imperative-language data structures in R is the immutability of data. As a general rule, you can modify environments---so you can assign to variables---but you cannot modify actual data. Whenever R makes it look like you are modifying data, it is lying. When you assign to an element in a vector
 
