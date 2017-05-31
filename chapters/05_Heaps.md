@@ -679,6 +679,8 @@ partition <- function(pivot, tree) {
 }
 ```
 
+It is, unfortunately, not that unusual to have such long and inelegant functions for matching different cases in data structure manipulations. The cases themselves are not terribly complicated---we recognise a given shape of the tree and then we transform it into another shape---but implementing the tests and transformations can be very cumbersome and error prone.
+
 ```{r, eval=FALSE}
 insert.splay_heap <- function(x, elm, ...) {
   part <- partition(elm, x$tree)
