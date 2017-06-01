@@ -51,16 +51,17 @@ evaluate <- function(empty) function(n, x) {
   vector_to_heap(x, empty)
 }
 
-ns <- seq(1000, 10000, by = 1000)
-performance <- rbind(get_performance("sorted", ns, setup_sorted, evaluate(empty_splay_heap())),
-                     get_performance("reversed", ns, setup_reversed, evaluate(empty_splay_heap())),
-                     get_performance("random", ns, setup_random, evaluate(empty_splay_heap())))
-
-ggplot(performance, aes(x = as.factor(n/1000), y = time / n, fill = algo)) +
-  geom_boxplot() + 
-  scale_fill_grey("Input sequence") + 
-  xlab("n (thousands)") + ylab(expression(Time / n)) + theme_minimal()
-
+# ns <- seq(1000, 15000, by = 1000)
+# performance <- rbind(get_performance("sorted", ns, setup_sorted, evaluate(empty_splay_heap())),
+#                      get_performance("reversed", ns, setup_reversed, evaluate(empty_splay_heap())),
+#                      get_performance("random", ns, setup_random, evaluate(empty_splay_heap())))
+# 
+# ggplot(performance, aes(x = as.factor(n/1000), y = time / n, fill = algo)) +
+#   geom_boxplot() + 
+#   scale_fill_grey("Input sequence") + 
+#   xlab("n (thousands)") + ylab(expression(Time / n)) + theme_minimal()
+# ggsave("splay-heap-construction-iterative.pdf", width = 12, height = 8, units = "cm")
+# ggsave("splay-heap-construction-iterative.png", width = 12, height = 8, units = "cm")
 
 evaluate <- function(empty) function(n, x) {
   heap <- empty
@@ -68,3 +69,13 @@ evaluate <- function(empty) function(n, x) {
     heap <- insert(heap, elm)
   }
 }
+ns <- seq(1000, 15000, by = 1000)
+performance <- rbind(get_performance("sorted", ns, setup_sorted, evaluate(empty_splay_heap())),
+                     get_performance("reversed", ns, setup_reversed, evaluate(empty_splay_heap())),
+                     get_performance("random", ns, setup_random, evaluate(empty_splay_heap())))
+ggplot(performance, aes(x = as.factor(n/1000), y = time / n, fill = algo)) +
+  geom_boxplot() + 
+  scale_fill_grey("Input sequence") + 
+  xlab("n (thousands)") + ylab(expression(Time / n)) + theme_minimal()
+ggsave("splay-heap-construction-element-wise.pdf", width = 12, height = 8, units = "cm")
+ggsave("splay-heap-construction-element-wise.png", width = 12, height = 8, units = "cm")

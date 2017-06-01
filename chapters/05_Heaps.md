@@ -681,14 +681,208 @@ partition <- function(pivot, tree) {
 
 It is, unfortunately, not that unusual to have such long and inelegant functions for matching different cases in data structure manipulations. The cases themselves are not terribly complicated---we recognise a given shape of the tree and then we transform it into another shape---but implementing the tests and transformations can be very cumbersome and error prone.
 
+We can improve on the readability of the function somewhat by moving the cases' tests and transformations into separate functions. We can write a predicate function per case and a transformation we invoke whenever the predicate is satisfied:
+
 ```{r, eval=FALSE}
-insert.splay_heap <- function(x, elm, ...) {
+is_case_1 <- function(pivot, tree) {
+  a <- tree$left
+  x <- tree$value
+  b <- tree$right
+  x <= pivot && is.null(b)
+}
+
+transform_case_1 <- function(pivot, tree) {
+  a <- tree$left
+  x <- tree$value
+  b <- tree$right
+  list(smaller = tree, larger = NULL)
+}
+
+is_case_2 <- function(pivot, tree) {
+  # is only called when right is not empty...
+  a <- tree$left
+  x <- tree$value
+  b1 <- tree$right$left
+  y <- tree$right$value
+  b2 <- tree$right$right
+  x <= pivot && y <= pivot
+}
+
+transform_case_2 <- function(pivot, tree) {
+  # is only called when right is not empty...
+  a <- tree$left
+  x <- tree$value
+  b1 <- tree$right$left
+  y <- tree$right$value
+  b2 <- tree$right$right
+
+  part <- partition(pivot, b2)
+  smaller <- splay_tree_node(
+    left = splay_tree_node(
+      left = a,
+      value = x,
+      right = b1
+    ),
+    value = y,
+    right = part$smaller
+  )
+  larger <- part$larger
+
+  list(smaller = smaller, larger = larger)
+}
+
+is_case_3 <- function(pivot, tree) {
+  # is only called when right is not empty...
+  a <- tree$left
+  x <- tree$value
+  b1 <- tree$right$left
+  y <- tree$right$value
+  b2 <- tree$right$right
+  x <= pivot && y > pivot
+}
+
+transform_case_3 <- function(pivot, tree) {
+  # is only called when right is not empty...
+  a <- tree$left
+  x <- tree$value
+  b1 <- tree$right$left
+  y <- tree$right$value
+  b2 <- tree$right$right
+
+  part <- partition(pivot, b1)
+  smaller <- splay_tree_node(
+    left = a,
+    value = x,
+    right = part$smaller
+  )
+  larger <- splay_tree_node(
+    left = part$larger,
+    value = y,
+    right = b2
+  )
+
+  list(smaller = smaller, larger = larger)
+}
+
+is_case_4 <- function(pivot, tree) {
+  a <- tree$left
+  x <- tree$value
+  b <- tree$right
+  x > pivot && is.null(a)
+}
+
+transform_case_4 <- function(pivot, tree) {
+  a <- tree$left
+  x <- tree$value
+  b <- tree$right
+  list(smaller = NULL, larger = tree)
+}
+
+is_case_5 <- function(pivot, tree) {
+  # is only called when left is not empty
+  a1 <- tree$left$left
+  y <- tree$left$value
+  a2 <- tree$left$right
+  x <- tree$value
+  b <- tree$right
+  x > pivot && y <= pivot
+}
+
+transform_case_5 <- function(pivot, tree) {
+  # is only called when left is not empty
+  a1 <- tree$left$left
+  y <- tree$left$value
+  a2 <- tree$left$right
+  x <- tree$value
+  b <- tree$right
+
+  part <- partition(pivot, a2)
+  smaller <- splay_tree_node(
+    left = a1,
+    value = y,
+    right = part$smaller
+  )
+  larger <- splay_tree_node(
+    left = part$larger,
+    value = x,
+    right = b
+  )
+
+  list(smaller = smaller, larger = larger)
+}
+
+is_case_6 <- function(pivot, tree) {
+  # is only called when left is not empty
+  a1 <- tree$left$left
+  y <- tree$left$value
+  a2 <- tree$left$right
+  x <- tree$value
+  b <- tree$right
+  x > pivot && y > pivot
+}
+
+transform_case_6 <- function(pivot, tree) {
+  # is only called when left is not empty
+  a1 <- tree$left$left
+  y <- tree$left$value
+  a2 <- tree$left$right
+  x <- tree$value
+  b <- tree$right
+
+  part <- partition(pivot, a1)
+  smaller <- part$smaller
+  larger <- splay_tree_node(
+    left = part$larger,
+    value = y,
+    right = splay_tree_node(
+      left = a2,
+      value = x,
+      right = b
+    )
+  )
+
+  list(smaller = smaller, larger = larger)
+}
+```
+
+This approach is slightly less efficient since we extract parts of the tree repeatedly in both tests and transformations and we repeat tests in different predicates, but the code is much clearer and much more manageable. Clear code is much preferable to a complex function of nested if-sentences, so unless performance *really* becomes a problem, the cleaner version is the better one.^[If performance becomes enough of a problem that the long version of `partition` is needed, that performance is probably better achieved by moving some of the code to C/C++, though, rather than having the complicated `partition` function.] With these predicates and transformations, the `partition` function just tests and transforms:
+
+```{r, eval=FALSE}
+partition <- function(pivot, tree) {
+  if (is.null(tree))
+    list(smaller = NULL, larger = NULL)
+  else if (is_case_1(pivot, tree))
+    transform_case_1(pivot, tree)
+  else if (is_case_2(pivot, tree))
+    transform_case_2(pivot, tree)
+  else if (is_case_3(pivot, tree))
+    transform_case_3(pivot, tree)
+  else if (is_case_4(pivot, tree))
+    transform_case_4(pivot, tree)
+  else if (is_case_5(pivot, tree))
+    transform_case_5(pivot, tree)
+  else if (is_case_6(pivot, tree))
+    transform_case_6(pivot, tree)
+  else stop("Unknown case")
+}
+```
+
+With `partition` in place, implementing `insert` is straightforward: we partition on the element we insert, put the smaller values to the left of the heap, the larger elements to the right, and the new element at the root, and then we updated the minimal value if the new element is smaller than the previous minimal value:
+
+```{r, eval=FALSE}
+insert.splay_heap <- function(x, elm) {
   part <- partition(elm, x$tree)
-  new_tree <- splay_tree_node(value = elm, left = part$smaller, right = part$larger)
+  new_tree <- splay_tree_node(
+    value = elm, 
+    left = part$smaller, 
+    right = part$larger
+  )
   new_min_value <- min(x$min_value, elm, na.rm = TRUE)
   splay_heap(min_value = new_min_value, splay_tree = new_tree)
 }
 ```
+
+Merging splay heaps is less efficient than merging the other heaps we have seen. To merge two splay heaps we partition on the roof of one of the trees, put that root at the root of the new tree and then merge the left and right subtrees into the smaller and larger parts of the partition, recursively. The whole operation runs in time $O(n)$ worst case.
 
 ```{r, eval=FALSE}
 merge_splay_trees <- function(x, y) {
@@ -716,6 +910,8 @@ merge.splay_heap <- function(x, y, ...) {
   splay_heap(min_value = new_min_value, splay_tree = new_tree)
 }
 ```
+
+
 
 
 see [@fig:heap-construction-binomial-splay-comparison].
