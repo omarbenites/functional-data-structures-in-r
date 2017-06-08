@@ -911,16 +911,13 @@ merge.splay_heap <- function(x, y, ...) {
 }
 ```
 
-
-
-
-see [@fig:heap-construction-binomial-splay-comparison].
-
-see [@fig:heap-construction-linear-splay-leftist].
+Best case performance for both insertion and merging is cases where partition completes early and happens if we insert elements in a splay heap in order or when we merge two heaps where all the elements in one is larger than all the elements in the the other. If we build a heap from sorted elements, or elements in sorted in reverse order, inserting one element at a time, splay heaps outperforms binomial heaps, see [@fig:heap-construction-binomial-splay-comparison], and if we build heaps by iteratively merging smaller heaps, and start with the elements ordered, splay heaps are competitive to leftist heaps, see [@fig:heap-construction-linear-splay-leftist].
 
 ![Constructing splay heaps one element at a time.](figures/heap-construction-binomial-splay-comparison){#fig:heap-construction-binomial-splay-comparison}
 
 ![Constructing splay heaps by iteratively merging heaps.](figures/heap-construction-linear-splay-leftist){#fig:heap-construction-linear-splay-leftist}
+
+In both construction algorithms, though, constructing heaps from a randomly permuted sequence of elements performa substantially worse than the best cases of sorted or reversely sorted elements, see [@fig:splay-heap-construction-element-wise] and [@fig:splay-heap-construction-iterative].
 
 ![Constructing splay heaps one element at a time for different types of input.](figures/splay-heap-construction-element-wise){#fig:splay-heap-construction-element-wise}
 
