@@ -311,3 +311,157 @@ remove.unbalanced_search_tree <- function(x, elm) {
 ![Removing an element from a subtree.](figures/search-tree-remove){#fig:search-tree-remove}
 
 Lists and trees are the basic building blocks for all the data structures we will examine in this book, and the way we have written functions for updating them will be the way we approach all the data structures we see. The methods we have seen in this chapter are not efficient in most cases---although the search tree is pretty good if the data we store in it is random---but the data structures that *are* efficient are build on the foundation we are familiar with now.
+
+
+## Random access lists
+
+As a small example, before we move on to more traditional data structures, we will consider how to build random access lists, described in @Okasaki95purelyfunctional, using lists and trees. Random access lists behave like lists---we can extend them at the front and we can access or remove the front element in constant time---but have two additional operations: we can access any element by its index and we can change any element referenced by its index (but not delete elements at arbitrary positions). The data structure from @Okasaki95purelyfunctional implements these two additional operations in $O(\\log n)$ time.
+
+The random access lists are constructed from fully balanced binary trees. With this data structure we won't be implementing different versions, so I will not bother with classes here and simply implement a bare-bones version of the data structures, so the actual structure can easily be seen and not be overshadowed by interface design. So, we implement trees as lists and we will use `NULL` to indicate an empty tree. We can construct a tree like this:
+
+```{r, eval=FALSE}
+ral_binary_tree <- function(value, left, right) {
+  list(value = value, left = left, right = right)
+}
+```
+
+Since we use trees to represent lists, we need a way of mapping positions in lists to nodes in the trees. In this data structure we will map indices to the in-order position in the trees; this means that the first element in a tree is the value in the root, the follows all elements in the left subtree and then all elements in the right subtree. We choose this in-order mapping because we then have constant time access to the front of the list---the root of the tree.
+
+To find the node in a tree that corresponds to a given index, we search recursively. Index 1 is always the root, so if we want to access this index we have access to it right away. Otherwise, we have to search in either the left or the right subtree. If the tree has size $n$, then the root has 1 element and each subtree has $(n-1)/2$ elements, since all the trees we will manipulate are fully balanced. So if we are looking for an index $i$ larger than one, we know that we need to search in the left subtree if $i \leq (n-1)/2 + 1$ and that we need to search in the right subtree otherwise. In a recursive call we then need to modify the index to skip past the root---when searching to the left---or the root and the left subtree---when searching to the right. Based on this algorithm, we can implement the lookup operation like this:
+
+```{r, eval=FALSE}
+ral_is_leaf <- function(tree)
+  !is.null(tree) && is.null(tree$left) && is.null(tree$right)
+
+ral_tree_lookup <- function(tree, tree_size, idx) {
+  if (idx == 1) return(tree$value)
+
+  if (ral_is_leaf(tree)) # a leaf but idx is not one!
+    if (idx > 1) stop("Index error in lookup")
+
+  child_size <- (tree_size - 1) / 2
+  if (idx <= child_size + 1)
+    ral_tree_lookup(tree$left, child_size, idx - 1)
+  else
+    ral_tree_lookup(tree$right, child_size, idx - 1 - child_size)
+}
+```
+
+Updating a tree is only slightly more involved. Locating the position where we need to change a value follows exactly the same search algorithm, of course, we just need to construct a new tree in recursive calls. Whenever we call recursively, we construct a new tree from the existing values and trees, but modify either the left or the right subtree via a recursive call to the update operation:
+
+```{r, eval=FALSE}
+ral_tree_update <- function(tree, tree_size, idx, value) {
+  if (ral_is_leaf(tree)) {
+    if (idx == 1)
+      return(ral_binary_tree(value, NULL, NULL))
+    # a leaf but idx is not one!
+    stop("Index error")
+  }
+
+  if (idx == 1) {
+    ral_binary_tree(value, tree$left, tree$right)
+  } else {
+    child_size <- (tree_size - 1) / 2
+    if (idx <= child_size + 1) {
+      ral_binary_tree(tree$value,
+                      ral_tree_update(tree$left, child_size, 
+                      idx - 1, value),
+                      tree$right)
+    } else {
+      ral_binary_tree(tree$value,
+                      tree$left,
+                      ral_tree_update(tree$right, child_size,
+                                      idx - 1 - child_size, value))
+    }
+  }
+}
+```
+
+Since the trees are fully balanced, the maximal depth of a tree of size $n$ is $O(\\log n)$, and both the lookup and the update operations thus run in this time.
+
+
+
+
+
+
+Obviously, we cannot represent all lists with $n$ elements in fully balanced trees. For any balanced tree with $n$ nodes, $n$ must be $2k - 1$ for some $k$.
+
+
+
+
+```{r, eval=FALSE}
+ral_node <- function(tree, tree_size, siblings) {
+  list(tree = tree, tree_size = tree_size, siblings = siblings)
+}
+
+ral_singleton_node <- function(value, siblings = NULL) {
+  singleton_tree <- ral_binary_tree(value, NULL, NULL)
+  ral_node(singleton_tree, 1, siblings)
+}
+
+ral_is_empty <- function(ral) is.null(ral)
+
+ral_cons <- function(elem, ral) {
+  if (ral_is_empty(ral) || ral_is_empty(ral$siblings))
+      return(ral_singleton_node(elem, ral))
+
+  first <- ral$tree
+  first_size <- ral$tree_size
+  second <- ral$siblings$tree
+  second_size <- ral$siblings$tree_size
+  rest <- ral$siblings$siblings
+
+  if (first_size < second_size)
+    ral_singleton_node(elem, ral)
+  else
+    ral_node(ral_binary_tree(elem, first, second), first_size + second_size + 1, rest)
+}
+```
+
+```{r, eval=FALSE}
+ral_head <- function(ral) {
+  ral$tree$value
+}
+```
+
+```{r, eval=FALSE}
+ral_is_singleton <- function(ral) {
+  ral$tree_size == 1
+}
+
+ral_tail <- function(ral) {
+  if (ral_is_singleton(ral))
+    ral$siblings
+  else {
+    left <- ral$tree$left
+    right <- ral$tree$right
+    size <- (ral$tree_size - 1) / 2
+    ral_node(left, size, ral_node(right, size, ral$siblings))
+  }
+}
+```
+
+```{r, eval=FALSE}
+ral_lookup <- function(ral, idx) {
+  while (!is.null(ral)) {
+    if (idx <= ral$tree_size)
+      return(ral_tree_lookup(ral$tree, ral$tree_size, idx))
+    idx <- idx - ral$tree_size
+    ral <- ral$siblings
+  }
+  stop("Index out of bounds")
+}
+```
+
+```{r, eval=FALSE}
+ral_update <- function(ral, idx, value) {
+  if (idx < 1) stop("Index out of bounds")
+  if (idx <= ral$tree_size)
+    ral_node(ral_tree_update(ral$tree, ral$tree_size, idx, value),
+             ral$tree_size, ral$siblings)
+  else
+    ral_node(ral$tree, ral$tree_size,
+             ral_update(ral$siblings, idx - ral$tree_size, value))
+
+}
+```
