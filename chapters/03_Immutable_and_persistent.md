@@ -384,23 +384,56 @@ Since the trees are fully balanced, the maximal depth of a tree of size $n$ is $
 
 
 
-Obviously, we cannot represent all lists with $n$ elements in fully balanced trees. For any balanced tree with $n$ nodes, $n$ must be $2k - 1$ for some $k$.
+Obviously, we cannot represent all lists with $n$ elements in fully balanced trees. For any balanced tree with $n$ nodes, $n$ must be $2^k - 1$ for some $k$. Because of this, there is a close corresponded between fully balanced trees and [skew binary numbers](https://en.wikipedia.org/wiki/Skew_binary_number_system), that we will exploit in this data structure. Skew binary numbers are positional numbers---meaning that the position of a digit determine its value, as you are used to with decimal and binary numbers---where a digit $d$ at position $k$ represent the number $d \\times 2^{k+1} - 1$. The digit $d$ can be 0, 1, or 2, but is only allowed to be 2 if it is the least significant non-zero digit. The first six numbers are shown in decimal, binary and skew binary representations below:
 
+Decimal |	Binary	| Skew binary
+-------:+------:+--------------:
+      0	|     0	|            0
+      1	|     1	|            1
+      2	|    10	|            2
+      3	|    11	|           10
+      4	|   100	|           11
+      5	|   101	|           12
 
+There are two important properties of skew binary numbers that we will exploit for our random access lists: any number $n$ can be represented in $O(\\log n)$ digits (of which at most one is 2, so even if we count that one twice we have logarithmically many digits), and we can increment and decrement numbers in this representation in constant time. The first property should be obvious: we use fewer digits in skew binary numbers than in binary numbers, and for binary numbers we only have $O(\\log n)$ digits to represent the number $n$. Constant time increment and decrement can be achieved by representing only the non-zero digits as a linked list. We represent a number by a linked list where the elements in the list are the positions of the non-zero digits, where the digit 2 is represented by two elements with the same position, and we keep this list sorted in increasing position order, see [@fig:skew-binary-numbers].
 
+![Representation of skew binary numbers.](figures/skew-binary-numbers){#fig:skew-binary-numbers}
+
+To increment a number, we first check if the first two elements in the list contain the same position. If they do, we cannot prepend a position zero element since only the least significant non-zero digit can be two. Instead, we can merge the two front elements into a single list element containing the next position in the number representation. Since $2 \\times (2^{k+1}-1) + 1 = 2^{k+2} - 1$, if the two front element contain the position $k$, then merging them this way increments the number $n$. Since only the two front elements can be duplicated, the new number we create this way doesn't invalidate the invariant---it might contain the same position as the next element in the list, but before we merge the front elements, that would be the only element containing that index. If the two front elements contain different positions, we can just add a zero-position element to the front of the list---this might change a 1 at position 0 to a 2, but that is fine since there was only one position 0 element to begin with.
+
+To decrement, we do the reverse of the increment operation. If there is a position zero element at the front of the list, we just remove that element. Otherwise, we take the first element and replace it with two elements containing the position one smaller.
+
+Getting back to the lists, we are going to represent these as linked lists similar to the skew binary number representation. We are just going to have fully balanced binary trees of size $2^{k+1}-1$ instead of the position $k$ as list elements. We represent a list of $n$ elements by having trees of sizes corresponding to the digits in the skew binary number representation of $n$. The representation is a linked list---we have a `siblings` pointer to the next element in the list---and each element contains a tree and the tree size. 
 
 ```{r, eval=FALSE}
 ral_node <- function(tree, tree_size, siblings) {
   list(tree = tree, tree_size = tree_size, siblings = siblings)
 }
+```
 
+The empty list is represented by `NULL`, as for empty trees.
+
+```{r, eval=FALSE}
+ral_is_empty <- function(ral) is.null(ral)
+```
+
+We will keep the trees sorted such that the first elements in the list are in the first tree, the following in the second tree, and so on. Then, because the order of elements in individual trees are in-order, we can get the head of the list from the root of the first tree:
+
+```{r, eval=FALSE}
+ral_head <- function(ral) {
+  ral$tree$value
+}
+```
+
+The other lists operations---appending an element to the front of the list, or removing the front element---follows the operations on skew binary numbers. For the `cons` operation, if the two front trees have different sizes, we just prepend a size 1 tree. If the two front trees have the same size, we construct a new tree with the new front element at the root, the two original front trees as the left and right trees, respectively---the first tree must go to the left and the second to the right---and we replace the two front trees with the new tree. Taking the tail of a list is just the reverse of these operations: if the front tree has size 1, simply remove it, otherwise split the front tree into two and get rid of the root, see [@fig:random-access-lists-cons-and-tail]. The implementation just checks the cases and does the appropriate operations based on them:
+
+![List operations on random access lists.](figures/random-access-lists-cons-and-tail){#fig:random-access-lists-cons-and-tail}
+
+```{r, eval=FALSE}
 ral_singleton_node <- function(value, siblings = NULL) {
   singleton_tree <- ral_binary_tree(value, NULL, NULL)
   ral_node(singleton_tree, 1, siblings)
 }
-
-ral_is_empty <- function(ral) is.null(ral)
-
 ral_cons <- function(elem, ral) {
   if (ral_is_empty(ral) || ral_is_empty(ral$siblings))
       return(ral_singleton_node(elem, ral))
@@ -418,11 +451,6 @@ ral_cons <- function(elem, ral) {
 }
 ```
 
-```{r, eval=FALSE}
-ral_head <- function(ral) {
-  ral$tree$value
-}
-```
 
 ```{r, eval=FALSE}
 ral_is_singleton <- function(ral) {
@@ -440,6 +468,10 @@ ral_tail <- function(ral) {
   }
 }
 ```
+
+
+
+
 
 ```{r, eval=FALSE}
 ral_lookup <- function(ral, idx) {
@@ -465,3 +497,4 @@ ral_update <- function(ral, idx, value) {
 
 }
 ```
+
