@@ -379,11 +379,6 @@ ral_tree_update <- function(tree, tree_size, idx, value) {
 
 Since the trees are fully balanced, the maximal depth of a tree of size $n$ is $O(\\log n)$, and both the lookup and the update operations thus run in this time.
 
-
-
-
-
-
 Obviously, we cannot represent all lists with $n$ elements in fully balanced trees. For any balanced tree with $n$ nodes, $n$ must be $2^k - 1$ for some $k$. Because of this, there is a close corresponded between fully balanced trees and [skew binary numbers](https://en.wikipedia.org/wiki/Skew_binary_number_system), that we will exploit in this data structure. Skew binary numbers are positional numbers---meaning that the position of a digit determine its value, as you are used to with decimal and binary numbers---where a digit $d$ at position $k$ represent the number $d \\times 2^{k+1} - 1$. The digit $d$ can be 0, 1, or 2, but is only allowed to be 2 if it is the least significant non-zero digit. The first six numbers are shown in decimal, binary and skew binary representations below:
 
 Decimal |	Binary	| Skew binary
