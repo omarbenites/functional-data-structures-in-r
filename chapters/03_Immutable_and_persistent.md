@@ -447,7 +447,8 @@ ral_cons <- function(elem, ral) {
   if (first_size < second_size)
     ral_singleton_node(elem, ral)
   else
-    ral_node(ral_binary_tree(elem, first, second), first_size + second_size + 1, rest)
+    ral_node(ral_binary_tree(elem, first, second), 
+             first_size + second_size + 1, rest)
 }
 ```
 
@@ -469,9 +470,7 @@ ral_tail <- function(ral) {
 }
 ```
 
-
-
-
+What remains to be implemented are the lookup and update operations. We already have functions for looking up or updating a value in a tree, so we just need code for picking the right tree from the list of trees. This is a simple matter of keeping track of the index we are looking for. For the lookup, we iterate through the trees and check if the index is less than the size of the current tree. If it is, we look into the tree. Otherwise, we decrease the index to reflect that we have moved past part of the list and then move to the next tree:
 
 ```{r, eval=FALSE}
 ral_lookup <- function(ral, idx) {
@@ -484,6 +483,8 @@ ral_lookup <- function(ral, idx) {
   stop("Index out of bounds")
 }
 ```
+
+For the update operation, we are essentially doing the same thing as for the lookup operation, but since we need to construct a new list down to the tree we end up modifying, we cannot use a loop. We must do the search in a recursion that constructs a new list. So each recursive call must be wrapped in a construction of a new node.
 
 ```{r, eval=FALSE}
 ral_update <- function(ral, idx, value) {
@@ -498,3 +499,6 @@ ral_update <- function(ral, idx, value) {
 }
 ```
 
+The way the data structure is updated is illustrated in [@fig:random-access-lists-update]. Here, the index we must update is found in the third tree, so the new list will consist of three new elements and will then be followed by elements from the old list. The first two list elements just point to the first two original trees while the third element points to a modified tree. In the figure, the original and updated trees are shown as disjoint, but in fact they will share most of their structure; only elements on the path down to the node that is updated will differ between the two trees.
+
+![Updating random access lists.](figures/random-access-lists-update){#fig:random-access-lists-update}
