@@ -495,6 +495,10 @@ I should also stress that this benefit of using binomial heaps over leftist heap
 
 ![Constructing heaps using the linear time algorithm.](figures/heap-construction-linear){#fig:heap-construction-linear}
 
+It is possible to improve the amortised constant time insertion to a worst-case time by building the construction on skew binary numbers instead of binary numbers. This construction is similar to the random access list from chapter 3 and to the binomial heaps we have just implemented. All we need is to allow the two binomial trees with smallest rank in the heap to have the same rank. If they do, we need to link them when we insert a new singleton tree, but just as we saw for the random access lists, by basing the construction on skew binary numbers rather than binary numbers, we never see a sequence of links being triggered by this. Of course, the difference between amortised and worst-case constant time operations is only relevant if every single operation needs to be fast---for example for real-time or interactive applications---which is rarely a concern for algorithms in R, so we won't implement this variant here.
+
+It is also possible to achieve worst-case merge operations by modifying the skew binomial heaps further into so-called Brodal heaps [@Brodal:1996kx]. This involves two levels of heaps. The Brodal heaps are skew binomial heaps containing *heaps* of the values we store in the heap, rather than the values themselves. Having two levels of heaps makes it possible to merge in constant time, but of course adds some complexity.
+
 ## Splay heaps
 
 A somewhat different approach to heaps is so-called *splay trees*. These are really search trees and have the search tree property---all values in a left subtree are smaller than the value in the root and all values in the right subtree are larger---rather than the heap property. Because they are search trees we will consider them in more detail in the next chapter, but here we will use them to implement a heap.
@@ -923,7 +927,6 @@ In both construction algorithms, though, constructing heaps from a randomly perm
 
 ![Constructing splay heaps by iteratively merging for different types of input.](figures/splay-heap-construction-iterative){#fig:splay-heap-construction-iterative}
 
-## Brodal heaps
 
 
 
